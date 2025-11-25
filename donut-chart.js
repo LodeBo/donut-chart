@@ -1,18 +1,19 @@
 /*!
- * 🟢 Donut Chart v1.6.0
+ * 🟢 Donut Chart v1.7.0
  * Multi-segment donut (pizza/taart) voor Home Assistant
  * - Meerdere entiteiten als segmenten
  * - Centertekst: totaal of aparte entiteit
  * - Top-label boven de ring (met schaal + offset)
- * - Theme-aware (YAML only)
- * - Legenda onderaan (met aparte decimalen voor %)
+ * - Theme-aware (ha-card-background, primary-text-color, divider-color)
+ * - Legenda onderaan (aparte decimalen voor %)
  * - Labels per segment
- * - Rechte gleuven tussen segmenten in theme-kleur
+ * - Rechte gleuven tussen segmenten in kaart-achtergrondkleur
+ * - Geschikt voor sections (geen geforceerde hoogte)
  */
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "1.6.0";
+  const VERSION = "1.7.0";
 
   class DonutChart extends HTMLElement {
     constructor() {
@@ -41,8 +42,8 @@
         // Top label
         top_label_text: "Donut",
         top_label_weight: 400,
-        top_label_color: "#ffffff",
-        text_color_inside: "#ffffff",
+        top_label_color: "var(--primary-text-color)",
+        text_color_inside: "var(--primary-text-color)",
         top_label_font_scale: 0.35, // R * scale
         top_label_offset_y: 0,      // extra verschuiving in Y (px)
 
@@ -52,13 +53,13 @@
         ring_offset_y: 0,
         label_ring_gap: 17,
 
-        // Kaartstijl
-        background: "var(--card-background-color)",
+        // Kaartstijl (theme-aware)
+        background: "var(--ha-card-background, var(--card-background-color))",
         border_radius: "12px",
-        border: "1px solid rgba(255,255,255,0.2)",
+        border: "1px solid var(--ha-card-border-color, rgba(0,0,0,0.12))",
         box_shadow: "none",
         padding: "0px",
-        track_color: "#000000",
+        track_color: "var(--divider-color, rgba(127,127,127,0.3))",
         track_opacity: 0.0,        // 0 = geen track
 
         // Minimum totaal
@@ -148,7 +149,7 @@
 
       const trackOpacity = Number(c.track_opacity ?? 0);
       const hasTrack = trackOpacity > 0;
-      const trackColor = c.track_color || "#000000";
+      const trackColor = c.track_color || "var(--divider-color, rgba(127,127,127,0.3))";
 
       const arcSeg = (a0, a1, sw, color) => {
         const x0 = cx + R * Math.cos(this._toRad(a0));
@@ -210,7 +211,7 @@
         svg += `
           <text x="${cx}" y="${yTop}" font-size="${fsTop}"
                 font-weight="${c.top_label_weight || 400}"
-                fill="${c.top_label_color || "#ffffff"}"
+                fill="${c.top_label_color || "var(--primary-text-color)"}"
                 text-anchor="middle" dominant-baseline="middle">
             ${c.top_label_text}
           </text>
@@ -219,7 +220,7 @@
 
       // Center tekst
       const centerMode = c.center_mode || "total";
-      const textColor = c.text_color_inside || "#ffffff";
+      const textColor = c.text_color_inside || "var(--primary-text-color)";
       const cfs = Number.isFinite(Number(c.center_font_scale))
         ? Number(c.center_font_scale)
         : 0.40;
@@ -306,12 +307,12 @@
         }
       }
 
-      // Rechte gleuven tussen segmenten (theme-kleur)
+      // Rechte gleuven tussen segmenten (theme-kleur / background)
       const gapWidth = Number(c.segment_gap_width ?? 0);
       if (gapWidth > 0 && segs.length > 1) {
         let gapColor = c.segment_gap_color;
         if (!gapColor || gapColor === "auto") {
-          gapColor = c.background || "var(--card-background-color)";
+          gapColor = c.background || "var(--ha-card-background, var(--card-background-color))";
         }
 
         const rInner = R - W / 2 - 1;
@@ -379,8 +380,7 @@
         <style>
           :host { 
             display:block; 
-            width:100%; 
-            height:100%; 
+            width:100%;
           }
           ha-card {
             background:${c.background};
@@ -389,12 +389,11 @@
             box-shadow:${c.box_shadow};
             padding:${c.padding};
             width:100%;
-            height:100%;
             box-sizing:border-box;
+            color: var(--primary-text-color); /* legenda & gewone tekst */
           }
           .wrap {
             width:100%;
-            height:100%;
             max-width:520px;
             margin:0 auto;
             display:flex;
