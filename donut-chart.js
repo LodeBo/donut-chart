@@ -1,5 +1,5 @@
 /*!
- * 🟢 Donut Chart v2.0.2
+ * 🟢 Donut Chart v2.0.3
  * Multi-segment donut (pizza/taart) voor Home Assistant
  * - Meerdere entiteiten als segmenten
  * - Centertekst: totaal of aparte entiteit
@@ -9,12 +9,12 @@
  * - Labels per segment
  * - Rechte gleuven tussen segmenten
  * - UI-editor (ha-form) voor de belangrijkste opties
- * - Gedraagt zich als "gewone" kaart: geen geforceerde hoogte, simpele getCardSize()
+ * - Kaart vult altijd het volledige vak in sections (host/ha-card 100% hoogte)
  */
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "2.0.2";
+  const VERSION = "2.0.3";
 
   // ---------- UI EDITOR ----------
 
@@ -577,6 +577,7 @@
           :host {
             display:block;
             width:100%;
+            height:100%;           /* 🔸 vul altijd volledige sectie-hoogte */
           }
           ha-card {
             background:${c.background};
@@ -585,8 +586,10 @@
             box-shadow:${c.box_shadow};
             padding:${c.padding};
             width:100%;
+            height:100%;           /* 🔸 kaart zelf ook 100% */
             box-sizing:border-box;
             color: var(--primary-text-color);
+            display:flex;
           }
           .wrap {
             width:100%;
@@ -595,14 +598,19 @@
             display:flex;
             flex-direction:column;
             align-items:center;
-            justify-content:center;
+            justify-content:space-between;  /* donut boven, legenda onder */
             position:relative;
             box-sizing:border-box;
             padding:8px 10px 10px 10px;
             gap:6px;
+            height:100%;                    /* 🔸 inhoud vult kaart-hoogte */
           }
           .chart-container {
             width:100%;
+            flex:1 1 auto;
+            display:flex;
+            align-items:center;
+            justify-content:center;
           }
           svg {
             width:100%;
@@ -659,9 +667,8 @@
       `;
     }
 
-    // Simpel, zoals andere custom kaarten: HA bepaalt layout, wij geven gewoon een ruwe "hoogte"
     getCardSize() {
-      return 4;
+      return 4;   // simpel, HA/sections doen de rest
     }
   }
 
