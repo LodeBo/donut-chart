@@ -1,5 +1,5 @@
 /*!
- * 🟢 Donut Chart v1.8.0
+ * 🟢 Donut Chart v1.9.0
  * Multi-segment donut (pizza/taart) voor Home Assistant
  * - Meerdere entiteiten als segmenten
  * - Centertekst: totaal of aparte entiteit
@@ -9,12 +9,13 @@
  * - Labels per segment
  * - Rechte gleuven tussen segmenten in kaart-achtergrondkleur
  * - Geschikt voor sections (geen geforceerde hoogte)
- * - max_width instelbaar zodat kaartgrootte-slider werkt
+ * - max_width instelbaar
+ * - getCardSize() dynamisch op basis van echte hoogte (geen overlap)
  */
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "1.8.0";
+  const VERSION = "1.9.0";
 
   class DonutChart extends HTMLElement {
     constructor() {
@@ -392,7 +393,7 @@
             padding:${c.padding};
             width:100%;
             box-sizing:border-box;
-            color: var(--primary-text-color); /* legenda & gewone tekst */
+            color: var(--primary-text-color);
           }
           .wrap {
             width:100%;
@@ -465,8 +466,20 @@
       `;
     }
 
+    // 🔽 Belangrijk voor sections: echte kaartgrootte doorgeven
     getCardSize() {
-      return 4;
+      const c = this._config || {};
+      // basis + marge adhv configuratie
+      let size = 3; // donut zelf
+      if (c.show_legend !== false) size += 2;          // legenda neemt ruimte
+      if ((c.top_label_text ?? "").trim() !== "") size += 1;
+
+      const card = this.shadowRoot?.querySelector("ha-card");
+      if (card && card.offsetHeight) {
+        const h = Math.ceil(card.offsetHeight / 50);   // zelfde schaal als HA
+        return Math.max(size, h);
+      }
+      return size;
     }
   }
 
@@ -475,10 +488,9 @@
       customElements.define("donut-chart", DonutChart);
     }
 
-    // Registratie voor kaart-picker
     window.customCards = window.customCards || [];
     window.customCards.push({
-      type: "donut-chart", // zonder "custom:"
+      type: "donut-chart",
       name: "Donut Chart",
       description: "Multi-segment donut chart (meerdere entiteiten als stukken).",
       preview: true,
