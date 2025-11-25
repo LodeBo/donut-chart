@@ -1,18 +1,18 @@
 /*!
- * 🟢 Donut Chart v1.4.0
+ * 🟢 Donut Chart v1.6.0
  * Multi-segment donut (pizza/taart) voor Home Assistant
  * - Meerdere entiteiten als segmenten
  * - Centertekst: totaal of aparte entiteit
- * - Top-label boven de ring
+ * - Top-label boven de ring (met schaal + offset)
  * - Theme-aware (YAML only)
- * - Legenda onderaan
+ * - Legenda onderaan (met aparte decimalen voor %)
  * - Labels per segment
- * - Nieuw: klein gat tussen segmenten + center font schaalbaar
+ * - Rechte gleuven tussen segmenten in theme-kleur
  */
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "1.4.0";
+  const VERSION = "1.6.0";
 
   class DonutChart extends HTMLElement {
     constructor() {
@@ -36,13 +36,15 @@
         center_entity: "",
         center_unit: "kWh",
         center_decimals: 2,
-        center_font_scale: 0.40,   // R * scale (0.4 was de oude vaste waarde)
+        center_font_scale: 0.40,   // R * scale
 
         // Top label
         top_label_text: "Donut",
         top_label_weight: 400,
         top_label_color: "#ffffff",
         text_color_inside: "#ffffff",
+        top_label_font_scale: 0.35, // R * scale
+        top_label_offset_y: 0,      // extra verschuiving in Y (px)
 
         // Ring layout
         ring_radius: 65,
@@ -57,24 +59,26 @@
         box_shadow: "none",
         padding: "0px",
         track_color: "#000000",
-        track_opacity: 0.3,
+        track_opacity: 0.0,        // 0 = geen track
 
         // Minimum totaal
         min_total: 0,
 
         // Legenda
         show_legend: true,
-        legend_value_mode: "both", // "value" | "percent" | "both"
+        legend_value_mode: "both",   // "value" | "percent" | "both"
+        legend_percent_decimals: 1,  // decimalen voor % in de legenda
 
-        // Labels op de donut per segment
-        segment_label_mode: "value",    // "none" | "value" | "percent" | "both"
+        // Labels op/bij de donut per segment
+        segment_label_mode: "value", // "none" | "value" | "percent" | "both"
         segment_label_decimals: 1,
         segment_label_min_angle: 12,
-        segment_label_offset: 4,        // afstand buiten de ring
-        segment_font_scale: 0.18,
+        segment_label_offset: 4,     // afstand buiten de ring (+ buiten, - naar binnen)
+        segment_font_scale: 0.18,    // R * scale
 
-        // Nieuw: kleine hoek tussen segmenten (in graden)
-        segment_gap_angle: 3,           // 0 = geen gat
+        // Rechte gleuf tussen segmenten
+        segment_gap_width: 3,        // px, 0 = geen gleuf
+        segment_gap_color: "auto",   // "auto" = zelfde als background
       };
     }
 
@@ -141,8 +145,10 @@
       const W = Number(c.ring_width || 8);
       const cx = 130;
       const cy = 130 + Number(c.ring_offset_y || 0);
+
+      const trackOpacity = Number(c.track_opacity ?? 0);
+      const hasTrack = trackOpacity > 0;
       const trackColor = c.track_color || "#000000";
-      const trackOpacity = Number(c.track_opacity ?? 0.3);
 
       const arcSeg = (a0, a1, sw, color) => {
         const x0 = cx + R * Math.cos(this._toRad(a0));
@@ -156,61 +162,51 @@
 
       let svg = `
         <svg viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg">
-          <!-- track ring -->
+      `;
+
+      if (hasTrack) {
+        svg += `
           <circle cx="${cx}" cy="${cy}" r="${R}" fill="none"
                   stroke="${trackColor}" stroke-width="${W}"
                   opacity="${trackOpacity}"/>
-      `;
+        `;
+      }
 
-      // Segmenten tekenen (met optionele gap)
-      const gapRaw = Number(c.segment_gap_angle ?? 0);
-      const gapAngle = Number.isFinite(gapRaw) && gapRaw > 0 ? gapRaw : 0;
-      const nSeg = segs.length;
-
-      if (total > 0 && nSeg) {
-        let angleCursor = -90;
-        if (gapAngle === 0 || gapAngle * nSeg >= 360) {
-          // Oude logica, geen gaten
-          for (const s of segs) {
-            const frac = this._clamp(s.value / total, 0, 1);
-            const span = frac * 360;
-            if (span <= 0) {
-              s._startAngle = s._endAngle = angleCursor;
-              continue;
-            }
-            const start = angleCursor;
-            const end = angleCursor + span;
-            angleCursor = end;
-            s._startAngle = start;
-            s._endAngle = end;
-            svg += arcSeg(start, end, W, s.color);
+      // Segmenten tekenen (volledige 360°, geen hoek-gaten)
+      if (total > 0 && segs.length) {
+        let angleCursor = -90; // start bovenaan
+        for (const s of segs) {
+          const frac = this._clamp(s.value / total, 0, 1);
+          const span = frac * 360;
+          if (span <= 0) {
+            s._startAngle = s._endAngle = angleCursor;
+            continue;
           }
-        } else {
-          // Met kleine gaten
-          const available = 360 - gapAngle * nSeg;
-          for (const s of segs) {
-            const frac = this._clamp(s.value / total, 0, 1);
-            const span = available * frac;
-            if (span <= 0) {
-              s._startAngle = s._endAngle = angleCursor;
-              angleCursor += gapAngle;
-              continue;
-            }
-            const start = angleCursor + gapAngle / 2;
-            const end = start + span;
-            angleCursor = end + gapAngle / 2;
-            s._startAngle = start;
-            s._endAngle = end;
-            svg += arcSeg(start, end, W, s.color);
-          }
+          const start = angleCursor;
+          const end = angleCursor + span;
+          angleCursor = end;
+          s._startAngle = start;
+          s._endAngle = end;
+          svg += arcSeg(start, end, W, s.color);
         }
       }
 
       // Top label
       if ((c.top_label_text ?? "").trim() !== "") {
-        const fsTop = R * 0.35;
-        const yTop =
+        const tfs = Number.isFinite(Number(c.top_label_font_scale))
+          ? Number(c.top_label_font_scale)
+          : 0.35;
+        const fsTop = R * tfs;
+
+        const baseYTop =
           (cy - R) - (W * 0.8) - fsTop * 0.25 - Number(c.label_ring_gap || 0);
+
+        const yOffset = Number.isFinite(Number(c.top_label_offset_y))
+          ? Number(c.top_label_offset_y)
+          : 0;
+
+        const yTop = baseYTop + yOffset;
+
         svg += `
           <text x="${cx}" y="${yTop}" font-size="${fsTop}"
                 font-weight="${c.top_label_weight || 400}"
@@ -259,7 +255,7 @@
         `;
       }
 
-      // Labels op de donut (buiten de ring, zoals je had)
+      // Labels per segment buiten de ring
       const labelMode = c.segment_label_mode || "none";
       if (labelMode !== "none" && total > 0 && segs.length) {
         const dec = Number.isFinite(Number(c.segment_label_decimals))
@@ -297,7 +293,6 @@
           } else if (labelMode === "value") {
             t = `${valStr}${s.unit ? " " + s.unit : ""}`;
           } else {
-            // both
             t = `${valStr}${s.unit ? " " + s.unit : ""} (${pctStr})`;
           }
 
@@ -311,6 +306,34 @@
         }
       }
 
+      // Rechte gleuven tussen segmenten (theme-kleur)
+      const gapWidth = Number(c.segment_gap_width ?? 0);
+      if (gapWidth > 0 && segs.length > 1) {
+        let gapColor = c.segment_gap_color;
+        if (!gapColor || gapColor === "auto") {
+          gapColor = c.background || "var(--card-background-color)";
+        }
+
+        const rInner = R - W / 2 - 1;
+        const rOuter = R + W / 2 + 1;
+
+        for (const s of segs) {
+          if (s._endAngle === undefined) continue;
+          const angle = s._endAngle;
+          const rad = this._toRad(angle);
+          const x0 = cx + rInner * Math.cos(rad);
+          const y0 = cy + rInner * Math.sin(rad);
+          const x1 = cx + rOuter * Math.cos(rad);
+          const y1 = cy + rOuter * Math.sin(rad);
+
+          svg += `
+            <line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}"
+                  stroke="${gapColor}" stroke-width="${gapWidth}"
+                  stroke-linecap="butt"/>
+          `;
+        }
+      }
+
       svg += `</svg>`;
 
       // Legenda
@@ -319,15 +342,18 @@
       const legendMode = c.legend_value_mode || "both";
 
       if (showLegend && total > 0 && segs.length) {
-        const dec = Number.isFinite(Number(c.center_decimals))
+        const valDec = Number.isFinite(Number(c.center_decimals))
           ? Number(c.center_decimals)
+          : 1;
+        const pctDec = Number.isFinite(Number(c.legend_percent_decimals))
+          ? Number(c.legend_percent_decimals)
           : 1;
 
         legendHtml = `<div class="legend">`;
         for (const s of segs) {
           const pct = total > 0 ? (s.value / total) * 100 : 0;
-          const pctStr = `${pct.toFixed(1)}%`;
-          const valStr = isFinite(s.value) ? s.value.toFixed(dec) : s.rawState;
+          const pctStr = `${pct.toFixed(pctDec)}%`;
+          const valStr = isFinite(s.value) ? s.value.toFixed(valDec) : s.rawState;
           let rightText = "";
 
           if (legendMode === "value") {
@@ -446,15 +472,18 @@
   try {
     if (!customElements.get("donut-chart")) {
       customElements.define("donut-chart", DonutChart);
-      window.customCards = window.customCards || [];
-      window.customCards.push({
-        type: "donut-chart",
-        name: "Donut Chart",
-        description: "Multi-segment donut chart (meerdere entiteiten als stukken).",
-        preview: true,
-      });
-      console.info(`🟢 ${TAG} v${VERSION} geladen`);
     }
+
+    // Registratie voor kaart-picker
+    window.customCards = window.customCards || [];
+    window.customCards.push({
+      type: "donut-chart", // zonder "custom:"
+      name: "Donut Chart",
+      description: "Multi-segment donut chart (meerdere entiteiten als stukken).",
+      preview: true,
+    });
+
+    console.info(`🟢 ${TAG} v${VERSION} geladen`);
   } catch (e) {
     console.error("❌ Fout bij registratie donut-chart:", e);
   }
