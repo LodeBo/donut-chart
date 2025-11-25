@@ -1,5 +1,5 @@
 /*!
- * 🟢 Donut Chart v1.7.0
+ * 🟢 Donut Chart v1.8.0
  * Multi-segment donut (pizza/taart) voor Home Assistant
  * - Meerdere entiteiten als segmenten
  * - Centertekst: totaal of aparte entiteit
@@ -9,11 +9,12 @@
  * - Labels per segment
  * - Rechte gleuven tussen segmenten in kaart-achtergrondkleur
  * - Geschikt voor sections (geen geforceerde hoogte)
+ * - max_width instelbaar zodat kaartgrootte-slider werkt
  */
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "1.7.0";
+  const VERSION = "1.8.0";
 
   class DonutChart extends HTMLElement {
     constructor() {
@@ -61,6 +62,7 @@
         padding: "0px",
         track_color: "var(--divider-color, rgba(127,127,127,0.3))",
         track_opacity: 0.0,        // 0 = geen track
+        max_width: "100%",         // max breedte van de donut binnen de kaart
 
         // Minimum totaal
         min_total: 0,
@@ -394,7 +396,7 @@
           }
           .wrap {
             width:100%;
-            max-width:520px;
+            max-width:${c.max_width || "100%"};
             margin:0 auto;
             display:flex;
             flex-direction:column;
