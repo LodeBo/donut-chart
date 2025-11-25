@@ -1,5 +1,5 @@
 /*!
- * 🟢 Donut Chart v2.0.0
+ * 🟢 Donut Chart v2.0.1
  * Multi-segment donut (pizza/taart) voor Home Assistant
  * - Meerdere entiteiten als segmenten
  * - Centertekst: totaal of aparte entiteit
@@ -8,18 +8,20 @@
  * - Legenda onderaan (aparte decimalen voor %)
  * - Labels per segment
  * - Rechte gleuven tussen segmenten
- * - Geschikt voor sections (geen geforceerde hoogte)
+ * - Geschikt voor sections
  * - max_width instelbaar
  * - UI-editor (ha-form) voor de belangrijkste opties
  */
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "2.0.0";
+  const VERSION = "2.0.1";
 
   // ---------- UI EDITOR ----------
 
-  const LitClass = window.LitElement || Object.getPrototypeOf(customElements.get("ha-panel-lovelace"));
+  const LitClass =
+    window.LitElement ||
+    Object.getPrototypeOf(customElements.get("ha-panel-lovelace"));
   const html = LitClass.prototype.html;
   const css = LitClass.prototype.css;
 
@@ -176,11 +178,13 @@
     _valueChanged(ev) {
       const config = ev.detail.value;
       this._config = config;
-      this.dispatchEvent(new CustomEvent("config-changed", {
-        detail: { config: this._config },
-        bubbles: true,
-        composed: true,
-      }));
+      this.dispatchEvent(
+        new CustomEvent("config-changed", {
+          detail: { config: this._config },
+          bubbles: true,
+          composed: true,
+        }),
+      );
     }
 
     render() {
@@ -195,7 +199,7 @@
         ></ha-form>
         <p style="margin-top:8px; font-size:0.8rem; opacity:0.7;">
           Tip: segmenten (entiteiten + kleuren) blijven voorlopig via YAML
-          (<code>segments:</code>), net zoals bij de eerste versie.
+          (<code>segments:</code>).
         </p>
       `;
     }
@@ -217,7 +221,7 @@
     customElements.define("donut-chart-editor", DonutChartEditor);
   }
 
-  // ---------- KAART ZELF ----------
+  // ---------- KAART ----------
 
   class DonutChart extends HTMLElement {
     constructor() {
@@ -235,14 +239,12 @@
           { entity: "sensor.example_3", label: "Zone 3", color: "#3b82f6" },
         ],
 
-        // Centertekst
         center_mode: "total",
         center_entity: "",
         center_unit: "kWh",
         center_decimals: 2,
-        center_font_scale: 0.40,
+        center_font_scale: 0.4,
 
-        // Top label
         top_label_text: "Donut",
         top_label_weight: 400,
         top_label_color: "var(--primary-text-color)",
@@ -250,13 +252,11 @@
         top_label_font_scale: 0.35,
         top_label_offset_y: 0,
 
-        // Ring
         ring_radius: 65,
         ring_width: 8,
         ring_offset_y: 0,
         label_ring_gap: 17,
 
-        // Kaartstijl
         background: "var(--ha-card-background, var(--card-background-color))",
         border_radius: "12px",
         border: "1px solid var(--ha-card-border-color, rgba(0,0,0,0.12))",
@@ -268,19 +268,16 @@
 
         min_total: 0,
 
-        // Legenda
         show_legend: true,
         legend_value_mode: "both",
         legend_percent_decimals: 1,
 
-        // Segmentlabels
         segment_label_mode: "value",
         segment_label_decimals: 1,
         segment_label_min_angle: 12,
         segment_label_offset: 4,
         segment_font_scale: 0.18,
 
-        // Gaps
         segment_gap_width: 3,
         segment_gap_color: "auto",
       };
@@ -354,14 +351,15 @@
 
       const trackOpacity = Number(c.track_opacity ?? 0);
       const hasTrack = trackOpacity > 0;
-      const trackColor = c.track_color || "var(--divider-color, rgba(127,127,127,0.3))";
+      const trackColor =
+        c.track_color || "var(--divider-color, rgba(127,127,127,0.3))";
 
       const arcSeg = (a0, a1, sw, color) => {
         const x0 = cx + R * Math.cos(this._toRad(a0));
         const y0 = cy + R * Math.sin(this._toRad(a0));
         const x1 = cx + R * Math.cos(this._toRad(a1));
         const y1 = cy + R * Math.sin(this._toRad(a1));
-        const large = (a1 - a0) > 180 ? 1 : 0;
+        const large = a1 - a0 > 180 ? 1 : 0;
         return `<path d="M ${x0} ${y0} A ${R} ${R} 0 ${large} 1 ${x1} ${y1}"
                 fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="butt"/>`;
       };
@@ -425,7 +423,7 @@
       const textColor = c.text_color_inside || "var(--primary-text-color)";
       const cfs = Number.isFinite(Number(c.center_font_scale))
         ? Number(c.center_font_scale)
-        : 0.40;
+        : 0.4;
       const fsCenter = R * cfs;
       let centerText = "";
 
@@ -440,10 +438,7 @@
           const raw = String(st.state ?? "0").replace(",", ".");
           const v = Number(raw);
           const d = Number(c.center_decimals ?? 0);
-          const unit =
-            c.center_unit ||
-            st.attributes.unit_of_measurement ||
-            "";
+          const unit = c.center_unit || st.attributes.unit_of_measurement || "";
           centerText = `${isFinite(v) ? v.toFixed(d) : st.state} ${unit}`.trim();
         }
       }
@@ -468,7 +463,8 @@
           : 12;
         const offset =
           Number.isFinite(Number(c.segment_label_offset)) ?
-          Number(c.segment_label_offset) : 4;
+          Number(c.segment_label_offset) :
+          4;
         const segFontScale = Number.isFinite(Number(c.segment_font_scale))
           ? Number(c.segment_font_scale)
           : 0.18;
@@ -512,7 +508,9 @@
       if (gapWidth > 0 && segs.length > 1) {
         let gapColor = c.segment_gap_color;
         if (!gapColor || gapColor === "auto") {
-          gapColor = c.background || "var(--ha-card-background, var(--card-background-color))";
+          gapColor =
+            c.background ||
+            "var(--ha-card-background, var(--card-background-color))";
         }
 
         const rInner = R - W / 2 - 1;
@@ -577,9 +575,10 @@
 
       const style = `
         <style>
-          :host { 
-            display:block; 
+          :host {
+            display:block;
             width:100%;
+            height:100%;
           }
           ha-card {
             background:${c.background};
@@ -588,8 +587,10 @@
             box-shadow:${c.box_shadow};
             padding:${c.padding};
             width:100%;
+            height:100%;
             box-sizing:border-box;
             color: var(--primary-text-color);
+            display:flex;
           }
           .wrap {
             width:100%;
@@ -597,23 +598,28 @@
             margin:0 auto;
             display:flex;
             flex-direction:column;
+            justify-content:space-between;
             align-items:center;
-            justify-content:center;
             position:relative;
             box-sizing:border-box;
             padding:8px 10px 10px 10px;
             gap:6px;
+            height:100%;
           }
           .chart-container {
             width:100%;
+            flex:1 1 auto;
+            display:flex;
+            align-items:center;
+            justify-content:center;
           }
           svg {
             width:100%;
             height:auto;
             display:block;
           }
-          text { 
-            user-select:none; 
+          text {
+            user-select:none;
           }
           .legend {
             width:100%;
@@ -686,7 +692,8 @@
     window.customCards.push({
       type: "donut-chart",
       name: "Donut Chart",
-      description: "Multi-segment donut chart (meerdere entiteiten als stukken).",
+      description:
+        "Multi-segment donut chart (meerdere entiteiten als stukken).",
       preview: true,
     });
 
