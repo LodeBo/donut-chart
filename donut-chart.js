@@ -1,5 +1,5 @@
 /*!
- * 🟢 Donut Chart v2.0.1
+ * 🟢 Donut Chart v2.0.2
  * Multi-segment donut (pizza/taart) voor Home Assistant
  * - Meerdere entiteiten als segmenten
  * - Centertekst: totaal of aparte entiteit
@@ -8,14 +8,13 @@
  * - Legenda onderaan (aparte decimalen voor %)
  * - Labels per segment
  * - Rechte gleuven tussen segmenten
- * - Geschikt voor sections
- * - max_width instelbaar
  * - UI-editor (ha-form) voor de belangrijkste opties
+ * - Gedraagt zich als "gewone" kaart: geen geforceerde hoogte, simpele getCardSize()
  */
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "2.0.1";
+  const VERSION = "2.0.2";
 
   // ---------- UI EDITOR ----------
 
@@ -578,7 +577,6 @@
           :host {
             display:block;
             width:100%;
-            height:100%;
           }
           ha-card {
             background:${c.background};
@@ -587,10 +585,8 @@
             box-shadow:${c.box_shadow};
             padding:${c.padding};
             width:100%;
-            height:100%;
             box-sizing:border-box;
             color: var(--primary-text-color);
-            display:flex;
           }
           .wrap {
             width:100%;
@@ -598,20 +594,15 @@
             margin:0 auto;
             display:flex;
             flex-direction:column;
-            justify-content:space-between;
             align-items:center;
+            justify-content:center;
             position:relative;
             box-sizing:border-box;
             padding:8px 10px 10px 10px;
             gap:6px;
-            height:100%;
           }
           .chart-container {
             width:100%;
-            flex:1 1 auto;
-            display:flex;
-            align-items:center;
-            justify-content:center;
           }
           svg {
             width:100%;
@@ -668,18 +659,9 @@
       `;
     }
 
+    // Simpel, zoals andere custom kaarten: HA bepaalt layout, wij geven gewoon een ruwe "hoogte"
     getCardSize() {
-      const c = this._config || {};
-      let size = 3;
-      if (c.show_legend !== false) size += 2;
-      if ((c.top_label_text ?? "").trim() !== "") size += 1;
-
-      const card = this.shadowRoot?.querySelector("ha-card");
-      if (card && card.offsetHeight) {
-        const h = Math.ceil(card.offsetHeight / 50);
-        return Math.max(size, h);
-      }
-      return size;
+      return 4;
     }
   }
 
