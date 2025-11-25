@@ -1,21 +1,223 @@
 /*!
- * 🟢 Donut Chart v1.9.0
+ * 🟢 Donut Chart v2.0.0
  * Multi-segment donut (pizza/taart) voor Home Assistant
  * - Meerdere entiteiten als segmenten
  * - Centertekst: totaal of aparte entiteit
  * - Top-label boven de ring (met schaal + offset)
- * - Theme-aware (ha-card-background, primary-text-color, divider-color)
+ * - Theme-aware
  * - Legenda onderaan (aparte decimalen voor %)
  * - Labels per segment
- * - Rechte gleuven tussen segmenten in kaart-achtergrondkleur
+ * - Rechte gleuven tussen segmenten
  * - Geschikt voor sections (geen geforceerde hoogte)
  * - max_width instelbaar
- * - getCardSize() dynamisch op basis van echte hoogte (geen overlap)
+ * - UI-editor (ha-form) voor de belangrijkste opties
  */
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "1.9.0";
+  const VERSION = "2.0.0";
+
+  // ---------- UI EDITOR ----------
+
+  const LitClass = window.LitElement || Object.getPrototypeOf(customElements.get("ha-panel-lovelace"));
+  const html = LitClass.prototype.html;
+  const css = LitClass.prototype.css;
+
+  class DonutChartEditor extends LitClass {
+    static get properties() {
+      return {
+        hass: {},
+        _config: {},
+        _schema: {},
+      };
+    }
+
+    constructor() {
+      super();
+      this._config = {};
+      this._schema = [
+        {
+          name: "top_label_text",
+          label: "Top label",
+          selector: { text: {} },
+        },
+        {
+          name: "top_label_font_scale",
+          label: "Top label grootte (relatief)",
+          selector: { number: { min: 0.1, max: 1, step: 0.05 } },
+        },
+        {
+          name: "top_label_offset_y",
+          label: "Top label offset Y",
+          selector: { number: { min: -50, max: 50, step: 1 } },
+        },
+        {
+          name: "center_mode",
+          label: "Center modus",
+          selector: {
+            select: {
+              options: [
+                { value: "total", label: "Totaal van alle segmenten" },
+                { value: "entity", label: "Specifieke entiteit" },
+                { value: "none", label: "Geen centertekst" },
+              ],
+            },
+          },
+        },
+        {
+          name: "center_entity",
+          label: "Center entiteit (bij modus 'entity')",
+          selector: { entity: {} },
+        },
+        {
+          name: "center_unit",
+          label: "Eenheid centertekst",
+          selector: { text: {} },
+        },
+        {
+          name: "center_decimals",
+          label: "Decimalen center / waarden",
+          selector: { number: { min: 0, max: 4, step: 1 } },
+        },
+        {
+          name: "center_font_scale",
+          label: "Grootte centertekst (relatief)",
+          selector: { number: { min: 0.1, max: 1, step: 0.05 } },
+        },
+        {
+          name: "segment_gap_width",
+          label: "Breedte gap tussen segmenten (px)",
+          selector: { number: { min: 0, max: 12, step: 1 } },
+        },
+        {
+          name: "segment_gap_color",
+          label: "Kleur gap (auto = kaartachtergrond)",
+          selector: { text: {} },
+        },
+        {
+          name: "segment_label_mode",
+          label: "Labels op de donut",
+          selector: {
+            select: {
+              options: [
+                { value: "none", label: "Geen labels" },
+                { value: "value", label: "Waarde" },
+                { value: "percent", label: "Percentage" },
+                { value: "both", label: "Waarde + percentage" },
+              ],
+            },
+          },
+        },
+        {
+          name: "segment_label_decimals",
+          label: "Decimalen segment-labels",
+          selector: { number: { min: 0, max: 4, step: 1 } },
+        },
+        {
+          name: "show_legend",
+          label: "Legenda tonen",
+          selector: { boolean: {} },
+        },
+        {
+          name: "legend_value_mode",
+          label: "Legenda: wat tonen?",
+          selector: {
+            select: {
+              options: [
+                { value: "value", label: "Alleen waarde" },
+                { value: "percent", label: "Alleen percentage" },
+                { value: "both", label: "Waarde + percentage" },
+              ],
+            },
+          },
+        },
+        {
+          name: "legend_percent_decimals",
+          label: "Decimalen percentage in legenda",
+          selector: { number: { min: 0, max: 4, step: 1 } },
+        },
+        {
+          name: "ring_radius",
+          label: "Ring radius",
+          selector: { number: { min: 30, max: 120, step: 1 } },
+        },
+        {
+          name: "ring_width",
+          label: "Ring dikte",
+          selector: { number: { min: 4, max: 40, step: 1 } },
+        },
+        {
+          name: "ring_offset_y",
+          label: "Ring offset Y",
+          selector: { number: { min: -60, max: 60, step: 1 } },
+        },
+        {
+          name: "label_ring_gap",
+          label: "Afstand tussen ring en top label",
+          selector: { number: { min: 0, max: 60, step: 1 } },
+        },
+        {
+          name: "max_width",
+          label: "Max breedte donut (bv. 100% of 420px)",
+          selector: { text: {} },
+        },
+        {
+          name: "background",
+          label: "Kaart achtergrond (optioneel)",
+          selector: { text: {} },
+        },
+      ];
+    }
+
+    setConfig(config) {
+      this._config = { ...config };
+    }
+
+    _valueChanged(ev) {
+      const config = ev.detail.value;
+      this._config = config;
+      this.dispatchEvent(new CustomEvent("config-changed", {
+        detail: { config: this._config },
+        bubbles: true,
+        composed: true,
+      }));
+    }
+
+    render() {
+      if (!this.hass || !this._config) return html``;
+      return html`
+        <ha-form
+          .hass=${this.hass}
+          .data=${this._config}
+          .schema=${this._schema}
+          .computeLabel=${this._computeLabel}
+          @value-changed=${this._valueChanged}
+        ></ha-form>
+        <p style="margin-top:8px; font-size:0.8rem; opacity:0.7;">
+          Tip: segmenten (entiteiten + kleuren) blijven voorlopig via YAML
+          (<code>segments:</code>), net zoals bij de eerste versie.
+        </p>
+      `;
+    }
+
+    _computeLabel(schema) {
+      return schema.label || schema.name;
+    }
+
+    static get styles() {
+      return css`
+        ha-form {
+          --paper-input-container-shared-input-style_-_font-size: 14px;
+        }
+      `;
+    }
+  }
+
+  if (!customElements.get("donut-chart-editor")) {
+    customElements.define("donut-chart-editor", DonutChartEditor);
+  }
+
+  // ---------- KAART ZELF ----------
 
   class DonutChart extends HTMLElement {
     constructor() {
@@ -27,7 +229,6 @@
 
     static getStubConfig() {
       return {
-        // Voorbeeldsegments
         segments: [
           { entity: "sensor.example_1", label: "Zone 1", color: "#f97316" },
           { entity: "sensor.example_2", label: "Zone 2", color: "#22c55e" },
@@ -35,55 +236,58 @@
         ],
 
         // Centertekst
-        center_mode: "total",      // "total" | "entity" | "none"
+        center_mode: "total",
         center_entity: "",
         center_unit: "kWh",
         center_decimals: 2,
-        center_font_scale: 0.40,   // R * scale
+        center_font_scale: 0.40,
 
         // Top label
         top_label_text: "Donut",
         top_label_weight: 400,
         top_label_color: "var(--primary-text-color)",
         text_color_inside: "var(--primary-text-color)",
-        top_label_font_scale: 0.35, // R * scale
-        top_label_offset_y: 0,      // extra verschuiving in Y (px)
+        top_label_font_scale: 0.35,
+        top_label_offset_y: 0,
 
-        // Ring layout
+        // Ring
         ring_radius: 65,
         ring_width: 8,
         ring_offset_y: 0,
         label_ring_gap: 17,
 
-        // Kaartstijl (theme-aware)
+        // Kaartstijl
         background: "var(--ha-card-background, var(--card-background-color))",
         border_radius: "12px",
         border: "1px solid var(--ha-card-border-color, rgba(0,0,0,0.12))",
         box_shadow: "none",
         padding: "0px",
         track_color: "var(--divider-color, rgba(127,127,127,0.3))",
-        track_opacity: 0.0,        // 0 = geen track
-        max_width: "100%",         // max breedte van de donut binnen de kaart
+        track_opacity: 0.0,
+        max_width: "100%",
 
-        // Minimum totaal
         min_total: 0,
 
         // Legenda
         show_legend: true,
-        legend_value_mode: "both",   // "value" | "percent" | "both"
-        legend_percent_decimals: 1,  // decimalen voor % in de legenda
+        legend_value_mode: "both",
+        legend_percent_decimals: 1,
 
-        // Labels op/bij de donut per segment
-        segment_label_mode: "value", // "none" | "value" | "percent" | "both"
+        // Segmentlabels
+        segment_label_mode: "value",
         segment_label_decimals: 1,
         segment_label_min_angle: 12,
-        segment_label_offset: 4,     // afstand buiten de ring (+ buiten, - naar binnen)
-        segment_font_scale: 0.18,    // R * scale
+        segment_label_offset: 4,
+        segment_font_scale: 0.18,
 
-        // Rechte gleuf tussen segmenten
-        segment_gap_width: 3,        // px, 0 = geen gleuf
-        segment_gap_color: "auto",   // "auto" = zelfde als background
+        // Gaps
+        segment_gap_width: 3,
+        segment_gap_color: "auto",
       };
+    }
+
+    static async getConfigElement() {
+      return document.createElement("donut-chart-editor");
     }
 
     setConfig(config) {
@@ -100,7 +304,6 @@
       this._render();
     }
 
-    // Helpers
     _clamp(v, a, b) {
       return Math.max(a, Math.min(b, v));
     }
@@ -120,7 +323,6 @@
       const segs = [];
       let total = 0;
 
-      // Waardes per segment ophalen
       for (const s of segDefs) {
         if (!s || !s.entity) continue;
         const st = h.states?.[s.entity];
@@ -176,9 +378,8 @@
         `;
       }
 
-      // Segmenten tekenen (volledige 360°, geen hoek-gaten)
       if (total > 0 && segs.length) {
-        let angleCursor = -90; // start bovenaan
+        let angleCursor = -90;
         for (const s of segs) {
           const frac = this._clamp(s.value / total, 0, 1);
           const span = frac * 360;
@@ -195,7 +396,6 @@
         }
       }
 
-      // Top label
       if ((c.top_label_text ?? "").trim() !== "") {
         const tfs = Number.isFinite(Number(c.top_label_font_scale))
           ? Number(c.top_label_font_scale)
@@ -221,7 +421,6 @@
         `;
       }
 
-      // Center tekst
       const centerMode = c.center_mode || "total";
       const textColor = c.text_color_inside || "var(--primary-text-color)";
       const cfs = Number.isFinite(Number(c.center_font_scale))
@@ -259,7 +458,6 @@
         `;
       }
 
-      // Labels per segment buiten de ring
       const labelMode = c.segment_label_mode || "none";
       if (labelMode !== "none" && total > 0 && segs.length) {
         const dec = Number.isFinite(Number(c.segment_label_decimals))
@@ -310,7 +508,6 @@
         }
       }
 
-      // Rechte gleuven tussen segmenten (theme-kleur / background)
       const gapWidth = Number(c.segment_gap_width ?? 0);
       if (gapWidth > 0 && segs.length > 1) {
         let gapColor = c.segment_gap_color;
@@ -340,7 +537,6 @@
 
       svg += `</svg>`;
 
-      // Legenda
       let legendHtml = "";
       const showLegend = c.show_legend !== false;
       const legendMode = c.legend_value_mode || "both";
@@ -466,17 +662,15 @@
       `;
     }
 
-    // 🔽 Belangrijk voor sections: echte kaartgrootte doorgeven
     getCardSize() {
       const c = this._config || {};
-      // basis + marge adhv configuratie
-      let size = 3; // donut zelf
-      if (c.show_legend !== false) size += 2;          // legenda neemt ruimte
+      let size = 3;
+      if (c.show_legend !== false) size += 2;
       if ((c.top_label_text ?? "").trim() !== "") size += 1;
 
       const card = this.shadowRoot?.querySelector("ha-card");
       if (card && card.offsetHeight) {
-        const h = Math.ceil(card.offsetHeight / 50);   // zelfde schaal als HA
+        const h = Math.ceil(card.offsetHeight / 50);
         return Math.max(size, h);
       }
       return size;
