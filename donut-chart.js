@@ -1,5 +1,5 @@
 /*!
- * 🟢 Donut Chart v2.0.6
+ * 🟢 Donut Chart v2.0.7
  * Multi-segment donut (pizza/taart) voor Home Assistant
  * - Meerdere entiteiten als segmenten
  * - Centertekst: totaal of aparte entiteit
@@ -9,12 +9,12 @@
  * - Labels per segment
  * - Rechte gleuven tussen segmenten
  * - UI-editor (ha-form)
- * - Geen flex-truken: donut + legenda volgen elkaar gewoon onder elkaar
+ * - Legenda verschuift mee naargelang ring_radius
  */
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "2.0.6";
+  const VERSION = "2.0.7";
 
   // ---------- UI EDITOR ----------
 
@@ -534,6 +534,13 @@
 
       svg += `</svg>`;
 
+      // Dynamische afstand tussen donut en legenda:
+      // basisradius = 65; bij kleinere R komt de legenda dichter bij de donut.
+      const baseRadius = 65;
+      const k = 0.6; // “gevoeligheid”
+      let legendMarginTop = 8 + (R - baseRadius) * k;
+      if (legendMarginTop < 0) legendMarginTop = 0;
+
       let legendHtml = "";
       const showLegend = c.show_legend !== false;
       const legendMode = c.legend_value_mode || "both";
@@ -546,7 +553,7 @@
           ? Number(c.legend_percent_decimals)
           : 1;
 
-        legendHtml = `<div class="legend">`;
+        legendHtml = `<div class="legend" style="margin-top:${legendMarginTop}px;">`;
         for (const s of segs) {
           const pct = total > 0 ? (s.value / total) * 100 : 0;
           const pctStr = `${pct.toFixed(pctDec)}%`;
@@ -597,7 +604,6 @@
           }
           .chart-container {
             width:100%;
-            margin-bottom:6px; /* afstand tussen donut en legenda */
           }
           svg {
             width:100%;
@@ -612,7 +618,6 @@
             display:flex;
             flex-direction:column;
             gap:4px;
-            margin-top:4px;
             font-size:0.85rem;
           }
           .legend-item {
