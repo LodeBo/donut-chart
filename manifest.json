@@ -1,7 +1,7 @@
 {
   "name": "Donut Chart",
   "description": "Themed Donut Chart inspired on Donut card",
-  "version": "2.0.5",
+  "version": "2.0.6",
   "frontend": true,
   "authors": ["LodeBo"],
   "keywords": ["card", "lovelace", "custom", "gradient", "donut"]
