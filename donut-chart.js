@@ -51,6 +51,21 @@
   
   /** @constant {number} DEG_TO_RAD - Conversion factor from degrees to radians */
   const DEG_TO_RAD = Math.PI / 180;
+  
+  /** @constant {number} MIN_SEGMENT_SPAN_DEGREES - Minimum segment span in degrees for rendering in large datasets */
+  const MIN_SEGMENT_SPAN_DEGREES = 0.5;
+  
+  /** @constant {number} MIN_RING_RADIUS - Minimum allowed ring radius */
+  const MIN_RING_RADIUS = 10;
+  
+  /** @constant {number} MAX_RING_RADIUS - Maximum allowed ring radius */
+  const MAX_RING_RADIUS = 200;
+  
+  /** @constant {number} MIN_RING_WIDTH - Minimum allowed ring width */
+  const MIN_RING_WIDTH = 1;
+  
+  /** @constant {number} MAX_RING_WIDTH - Maximum allowed ring width */
+  const MAX_RING_WIDTH = 100;
 
   // =========================================================================
   // UTILITY FUNCTIONS
@@ -91,13 +106,40 @@
 
   /**
    * Safely parses a numeric value from various input types
+   * Handles European decimal notation (comma as decimal separator)
+   * but preserves thousand separators when detected
    * @param {any} value - Value to parse
    * @param {number} defaultValue - Default value if parsing fails
    * @returns {number} Parsed numeric value or default
    */
   const safeParseNumber = (value, defaultValue = 0) => {
     if (value === null || value === undefined) return defaultValue;
-    const parsed = Number(String(value).replace(",", "."));
+    
+    let strValue = String(value).trim();
+    
+    // Check if this looks like a number with thousand separators (e.g., "1,000.00" or "1.000,00")
+    // If there are multiple commas or periods, it's likely using thousand separators
+    const commaCount = (strValue.match(/,/g) || []).length;
+    const periodCount = (strValue.match(/\./g) || []).length;
+    
+    if (commaCount === 1 && periodCount === 0) {
+      // Single comma, no periods - likely European decimal (e.g., "1,5")
+      strValue = strValue.replace(",", ".");
+    } else if (commaCount > 1 || (commaCount === 1 && periodCount >= 1)) {
+      // Multiple commas or both comma and period - try to detect format
+      const lastComma = strValue.lastIndexOf(',');
+      const lastPeriod = strValue.lastIndexOf('.');
+      
+      if (lastComma > lastPeriod) {
+        // European format: 1.000,00 -> 1000.00
+        strValue = strValue.replace(/\./g, '').replace(',', '.');
+      } else {
+        // US format: 1,000.00 -> 1000.00
+        strValue = strValue.replace(/,/g, '');
+      }
+    }
+    
+    const parsed = Number(strValue);
     return Number.isFinite(parsed) ? parsed : defaultValue;
   };
 
@@ -147,15 +189,15 @@
     // Validate numeric properties are within reasonable bounds
     if (config.ring_radius !== undefined) {
       const radius = safeParseNumber(config.ring_radius);
-      if (radius < 10 || radius > 200) {
-        errors.push(`ring_radius should be between 10 and 200, got ${radius}`);
+      if (radius < MIN_RING_RADIUS || radius > MAX_RING_RADIUS) {
+        errors.push(`ring_radius should be between ${MIN_RING_RADIUS} and ${MAX_RING_RADIUS}, got ${radius}`);
       }
     }
     
     if (config.ring_width !== undefined) {
       const width = safeParseNumber(config.ring_width);
-      if (width < 1 || width > 100) {
-        errors.push(`ring_width should be between 1 and 100, got ${width}`);
+      if (width < MIN_RING_WIDTH || width > MAX_RING_WIDTH) {
+        errors.push(`ring_width should be between ${MIN_RING_WIDTH} and ${MAX_RING_WIDTH}, got ${width}`);
       }
     }
     
@@ -707,7 +749,7 @@
           }
           
           // Skip very small segments for large datasets (optimization)
-          if (isLargeDataset && span < 0.5) {
+          if (isLargeDataset && span < MIN_SEGMENT_SPAN_DEGREES) {
             s._startAngle = s._endAngle = angleCursor;
             angleCursor += span;
             continue;
@@ -887,9 +929,14 @@
      */
     _escapeHtml(text) {
       if (!text) return '';
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
+      const escapeMap = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      };
+      return String(text).replace(/[&<>"']/g, char => escapeMap[char]);
     }
 
     /**
