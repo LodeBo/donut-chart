@@ -1,5 +1,5 @@
 /*!
- * 🟢 Donut Chart v2.0.7
+ * 🟢 Donut Chart v2.0.8
  * Multi-segment donut (pizza/taart) voor Home Assistant
  * - Meerdere entiteiten als segmenten
  * - Centertekst: totaal of aparte entiteit
@@ -9,12 +9,12 @@
  * - Labels per segment
  * - Rechte gleuven tussen segmenten
  * - UI-editor (ha-form)
- * - Legenda verschuift mee naargelang ring_radius
+ * - SVG-hoogte schaalt mee met ring_radius ⇒ legenda schuift mee
  */
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "2.0.7";
+  const VERSION = "2.0.8";
 
   // ---------- UI EDITOR ----------
 
@@ -345,8 +345,18 @@
 
       const R = Number(c.ring_radius || 65);
       const W = Number(c.ring_width || 8);
+
+      // Dynamische hoogte voor de SVG
+      // basis: R=65 → hoogte 260. Extra marge voor labels/toplabel.
+      const baseR = 65;
+      const baseH = 260;
+      const extra = baseH - 2 * baseR; // 260 - 130 = 130
+      let vbH = 2 * R + extra;
+      if (vbH < 180) vbH = 180;
+      if (vbH > 260) vbH = 260;
+
       const cx = 130;
-      const cy = 130 + Number(c.ring_offset_y || 0);
+      const cy = vbH / 2 + Number(c.ring_offset_y || 0);
 
       const trackOpacity = Number(c.track_opacity ?? 0);
       const hasTrack = trackOpacity > 0;
@@ -364,7 +374,7 @@
       };
 
       let svg = `
-        <svg viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg">
+        <svg viewBox="0 0 260 ${vbH}" xmlns="http://www.w3.org/2000/svg">
       `;
 
       if (hasTrack) {
@@ -461,9 +471,9 @@
           ? Number(c.segment_label_min_angle)
           : 12;
         const offset =
-          Number.isFinite(Number(c.segment_label_offset)) ?
-          Number(c.segment_label_offset) :
-          4;
+          Number.isFinite(Number(c.segment_label_offset))
+            ? Number(c.segment_label_offset)
+            : 4;
         const segFontScale = Number.isFinite(Number(c.segment_font_scale))
           ? Number(c.segment_font_scale)
           : 0.18;
@@ -534,13 +544,7 @@
 
       svg += `</svg>`;
 
-      // Dynamische afstand tussen donut en legenda:
-      // basisradius = 65; bij kleinere R komt de legenda dichter bij de donut.
-      const baseRadius = 65;
-      const k = 0.6; // “gevoeligheid”
-      let legendMarginTop = 8 + (R - baseRadius) * k;
-      if (legendMarginTop < 0) legendMarginTop = 0;
-
+      // Legenda (vaste kleine marge, hoogte van SVG verandert mee met R)
       let legendHtml = "";
       const showLegend = c.show_legend !== false;
       const legendMode = c.legend_value_mode || "both";
@@ -553,7 +557,7 @@
           ? Number(c.legend_percent_decimals)
           : 1;
 
-        legendHtml = `<div class="legend" style="margin-top:${legendMarginTop}px;">`;
+        legendHtml = `<div class="legend">`;
         for (const s of segs) {
           const pct = total > 0 ? (s.value / total) * 100 : 0;
           const pctStr = `${pct.toFixed(pctDec)}%`;
@@ -604,6 +608,7 @@
           }
           .chart-container {
             width:100%;
+            margin-bottom:6px;
           }
           svg {
             width:100%;
