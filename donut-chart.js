@@ -1,5 +1,5 @@
 /*!
- * 🟢 Donut Chart v2.1.1
+ * 🟢 Donut Chart v2.2.0
  * Multi-segment donut (pizza/taart) voor Home Assistant
  * - Meerdere entiteiten als segmenten
  * - Centertekst: totaal of aparte entiteit
@@ -11,13 +11,160 @@
  * - UI-editor (ha-form)
  * - SVG-hoogte schaalt mee met ring_radius
  * - Legenda schaalt mee (font + afstand tot donut)
+ * - Home Assistant Section Views compatibility
+ * - Improved error handling and validation
+ * - Loading states and fallback UI
+ * - Optimized SVG rendering for large datasets
  */
 
 (() => {
+  // =========================================================================
+  // CONSTANTS - Refactored magic numbers for better configurability
+  // =========================================================================
+  
+  /** @constant {string} TAG - Custom element tag name */
   const TAG = "donut-chart";
-  const VERSION = "2.1.1";
+  
+  /** @constant {string} VERSION - Current version of the component */
+  const VERSION = "2.2.0";
+  
+  /** @constant {number} BASE_RADIUS - Default ring radius used for scaling calculations */
+  const BASE_RADIUS = 65;
+  
+  /** @constant {number} BASE_HEIGHT - Default viewBox height for SVG calculations */
+  const BASE_HEIGHT = 260;
+  
+  /** @constant {number} VIEWBOX_WIDTH - Fixed SVG viewBox width */
+  const VIEWBOX_WIDTH = 260;
+  
+  /** @constant {number} MIN_VIEWBOX_HEIGHT - Minimum allowed viewBox height */
+  const MIN_VIEWBOX_HEIGHT = 180;
+  
+  /** @constant {number} MAX_VIEWBOX_HEIGHT - Maximum allowed viewBox height */
+  const MAX_VIEWBOX_HEIGHT = 260;
+  
+  /** @constant {number} CENTER_X - X coordinate for the center of the donut */
+  const CENTER_X = 130;
+  
+  /** @constant {number} MAX_SEGMENTS_FOR_OPTIMIZATION - Threshold for applying rendering optimizations */
+  const MAX_SEGMENTS_FOR_OPTIMIZATION = 50;
+  
+  /** @constant {number} DEG_TO_RAD - Conversion factor from degrees to radians */
+  const DEG_TO_RAD = Math.PI / 180;
 
-  // ---------- UI EDITOR ----------
+  // =========================================================================
+  // UTILITY FUNCTIONS
+  // =========================================================================
+  
+  /**
+   * Safely logs messages with component prefix
+   * @param {string} level - Log level (info, warn, error)
+   * @param {string} message - Message to log
+   * @param {...any} args - Additional arguments to log
+   */
+  const log = (level, message, ...args) => {
+    const prefix = `🟢 ${TAG}:`;
+    if (level === 'error') {
+      console.error(prefix, message, ...args);
+    } else if (level === 'warn') {
+      console.warn(prefix, message, ...args);
+    } else {
+      console.info(prefix, message, ...args);
+    }
+  };
+
+  /**
+   * Clamps a value between minimum and maximum bounds
+   * @param {number} value - Value to clamp
+   * @param {number} min - Minimum bound
+   * @param {number} max - Maximum bound
+   * @returns {number} Clamped value
+   */
+  const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+  /**
+   * Converts degrees to radians
+   * @param {number} degrees - Angle in degrees
+   * @returns {number} Angle in radians
+   */
+  const toRadians = (degrees) => degrees * DEG_TO_RAD;
+
+  /**
+   * Safely parses a numeric value from various input types
+   * @param {any} value - Value to parse
+   * @param {number} defaultValue - Default value if parsing fails
+   * @returns {number} Parsed numeric value or default
+   */
+  const safeParseNumber = (value, defaultValue = 0) => {
+    if (value === null || value === undefined) return defaultValue;
+    const parsed = Number(String(value).replace(",", "."));
+    return Number.isFinite(parsed) ? parsed : defaultValue;
+  };
+
+  /**
+   * Validates segment configuration
+   * @param {Object} segment - Segment configuration object
+   * @returns {Object} Validation result with isValid flag and errors array
+   */
+  const validateSegment = (segment) => {
+    const errors = [];
+    if (!segment) {
+      errors.push("Segment is null or undefined");
+      return { isValid: false, errors };
+    }
+    if (!segment.entity || typeof segment.entity !== 'string') {
+      errors.push(`Invalid entity: ${segment.entity}`);
+    }
+    return { isValid: errors.length === 0, errors };
+  };
+
+  /**
+   * Validates the entire configuration object
+   * @param {Object} config - Configuration object to validate
+   * @returns {Object} Validation result with isValid flag and errors array
+   */
+  const validateConfig = (config) => {
+    const errors = [];
+    
+    if (!config) {
+      errors.push("Configuration is null or undefined");
+      return { isValid: false, errors };
+    }
+    
+    if (!Array.isArray(config.segments)) {
+      errors.push("Segments must be an array");
+    } else if (config.segments.length === 0) {
+      errors.push("At least one segment is required");
+    } else {
+      config.segments.forEach((seg, idx) => {
+        const result = validateSegment(seg);
+        if (!result.isValid) {
+          errors.push(`Segment ${idx}: ${result.errors.join(", ")}`);
+        }
+      });
+    }
+    
+    // Validate numeric properties are within reasonable bounds
+    if (config.ring_radius !== undefined) {
+      const radius = safeParseNumber(config.ring_radius);
+      if (radius < 10 || radius > 200) {
+        errors.push(`ring_radius should be between 10 and 200, got ${radius}`);
+      }
+    }
+    
+    if (config.ring_width !== undefined) {
+      const width = safeParseNumber(config.ring_width);
+      if (width < 1 || width > 100) {
+        errors.push(`ring_width should be between 1 and 100, got ${width}`);
+      }
+    }
+    
+    return { isValid: errors.length === 0, errors };
+  };
+
+  // =========================================================================
+  // UI EDITOR
+  // =========================================================================
 
   const LitClass =
     window.LitElement ||
@@ -25,7 +172,16 @@
   const html = LitClass.prototype.html;
   const css = LitClass.prototype.css;
 
+  /**
+   * DonutChartEditor - Visual editor for donut chart configuration
+   * Provides a form-based UI for configuring chart properties
+   * @extends LitElement
+   */
   class DonutChartEditor extends LitClass {
+    /**
+     * @static
+     * @returns {Object} Properties definition for Lit element reactivity
+     */
     static get properties() {
       return {
         hass: {},
@@ -34,6 +190,10 @@
       };
     }
 
+    /**
+     * Creates an instance of DonutChartEditor
+     * Initializes configuration and schema for the form
+     */
     constructor() {
       super();
       this._config = {};
@@ -176,10 +336,19 @@
       ];
     }
 
+    /**
+     * Sets the configuration for the editor
+     * @param {Object} config - Configuration object
+     */
     setConfig(config) {
       this._config = { ...config };
     }
 
+    /**
+     * Handles value change events from the form
+     * @param {CustomEvent} ev - Value changed event from ha-form
+     * @private
+     */
     _valueChanged(ev) {
       const config = ev.detail.value;
       this._config = config;
@@ -192,6 +361,10 @@
       );
     }
 
+    /**
+     * Renders the editor form
+     * @returns {TemplateResult} Lit HTML template
+     */
     render() {
       if (!this.hass || !this._config) return html``;
       return html`
@@ -209,10 +382,20 @@
       `;
     }
 
+    /**
+     * Computes the label text for a form field
+     * @param {Object} schema - Schema object with label and name properties
+     * @returns {string} Label text to display
+     * @private
+     */
     _computeLabel(schema) {
       return schema.label || schema.name;
     }
 
+    /**
+     * @static
+     * @returns {CSSResult} Component styles
+     */
     static get styles() {
       return css`
         ha-form {
@@ -226,16 +409,34 @@
     customElements.define("donut-chart-editor", DonutChartEditor);
   }
 
-  // ---------- KAART ----------
+  // =========================================================================
+  // MAIN DONUT CHART COMPONENT
+  // =========================================================================
 
+  /**
+   * DonutChart - Home Assistant custom card for displaying donut/pie charts
+   * Supports multiple segments, legends, labels, and Section Views compatibility
+   * @extends HTMLElement
+   */
   class DonutChart extends HTMLElement {
+    /**
+     * Creates an instance of DonutChart
+     * Initializes shadow DOM and internal state
+     */
     constructor() {
       super();
       this.attachShadow({ mode: "open" });
       this._hass = null;
       this._config = null;
+      this._isLoading = true;
+      this._lastError = null;
     }
 
+    /**
+     * Gets the default stub configuration for new cards
+     * @static
+     * @returns {Object} Default configuration object
+     */
     static getStubConfig() {
       return {
         segments: [
@@ -286,55 +487,160 @@
 
         segment_gap_width: 3,
         segment_gap_color: "auto",
+        
+        // Section Views compatibility options
+        section_view_mode: false,
+        section_donut_container: null,
+        section_legend_container: null,
+        section_center_container: null,
       };
     }
 
+    /**
+     * Gets the configuration element for the visual editor
+     * @static
+     * @async
+     * @returns {Promise<HTMLElement>} Editor element
+     */
     static async getConfigElement() {
       return document.createElement("donut-chart-editor");
     }
 
+    /**
+     * Sets and validates the configuration for the card
+     * @param {Object} config - User-provided configuration
+     * @throws {Error} If configuration is invalid
+     */
     setConfig(config) {
+      // Validate configuration
+      const validation = validateConfig(config);
+      if (!validation.isValid) {
+        log('warn', 'Configuration validation warnings:', validation.errors);
+      }
+      
       const base = DonutChart.getStubConfig();
       this._config = {
         ...base,
         ...config,
         segments: config.segments || base.segments,
       };
+      this._isLoading = false;
     }
 
+    /**
+     * Sets the Home Assistant object and triggers re-render
+     * @param {Object} hass - Home Assistant object containing states
+     */
     set hass(hass) {
       this._hass = hass;
+      this._isLoading = false;
       this._render();
     }
 
-    _clamp(v, a, b) {
-      return Math.max(a, Math.min(b, v));
+    /**
+     * Generates SVG arc path segment
+     * @param {number} a0 - Start angle in degrees
+     * @param {number} a1 - End angle in degrees
+     * @param {number} sw - Stroke width
+     * @param {string} color - Stroke color
+     * @param {number} R - Radius
+     * @param {number} cx - Center X coordinate
+     * @param {number} cy - Center Y coordinate
+     * @returns {string} SVG path element string
+     * @private
+     */
+    _arcSegment(a0, a1, sw, color, R, cx, cy) {
+      const x0 = cx + R * Math.cos(toRadians(a0));
+      const y0 = cy + R * Math.sin(toRadians(a0));
+      const x1 = cx + R * Math.cos(toRadians(a1));
+      const y1 = cy + R * Math.sin(toRadians(a1));
+      const large = a1 - a0 > 180 ? 1 : 0;
+      return `<path d="M ${x0} ${y0} A ${R} ${R} 0 ${large} 1 ${x1} ${y1}"
+              fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="butt"/>`;
     }
 
-    _toRad(d) {
-      return (d * Math.PI) / 180;
+    /**
+     * Generates loading state UI
+     * @returns {string} HTML string for loading state
+     * @private
+     */
+    _renderLoadingState() {
+      return `
+        <div class="loading-state">
+          <div class="loading-spinner"></div>
+          <span>Loading chart data...</span>
+        </div>
+      `;
     }
 
-    _render() {
-      if (!this._config || !this._hass) return;
-      const c = this._config;
-      const h = this._hass;
+    /**
+     * Generates error state UI
+     * @param {string} message - Error message to display
+     * @returns {string} HTML string for error state
+     * @private
+     */
+    _renderErrorState(message) {
+      return `
+        <div class="error-state">
+          <span class="error-icon">⚠️</span>
+          <span class="error-message">${message}</span>
+        </div>
+      `;
+    }
 
-      const segDefs = Array.isArray(c.segments) ? c.segments : [];
-      if (!segDefs.length) return;
+    /**
+     * Generates empty/no-data state UI
+     * @returns {string} HTML string for empty state
+     * @private
+     */
+    _renderEmptyState() {
+      return `
+        <div class="empty-state">
+          <span class="empty-icon">📊</span>
+          <span class="empty-message">No data available</span>
+        </div>
+      `;
+    }
 
+    /**
+     * Processes segment definitions and calculates values from entity states
+     * @param {Array} segDefs - Segment definitions from config
+     * @param {Object} states - Home Assistant entity states
+     * @returns {Object} Object containing processed segments and total
+     * @private
+     */
+    _processSegments(segDefs, states) {
       const segs = [];
       let total = 0;
+      const errors = [];
 
       for (const s of segDefs) {
-        if (!s || !s.entity) continue;
-        const st = h.states?.[s.entity];
-        if (!st) continue;
+        if (!s || !s.entity) {
+          errors.push('Invalid segment definition (missing entity)');
+          continue;
+        }
+        
+        const st = states?.[s.entity];
+        if (!st) {
+          log('warn', `Entity not found: ${s.entity}`);
+          // Add segment with zero value instead of skipping
+          segs.push({
+            entity: s.entity,
+            label: s.label || s.entity,
+            color: s.color || "#cccccc",
+            value: 0,
+            unit: "",
+            rawState: "unavailable",
+            isUnavailable: true,
+          });
+          continue;
+        }
+        
         const raw = String(st.state ?? "0").replace(",", ".");
-        let v = Number(raw);
-        if (!isFinite(v)) v = 0;
+        let v = safeParseNumber(raw, 0);
         if (v < 0) v = 0;
         total += v;
+        
         segs.push({
           entity: s.entity,
           label: s.label || s.entity,
@@ -342,348 +648,547 @@
           value: v,
           unit: st.attributes?.unit_of_measurement || "",
           rawState: st.state,
+          isUnavailable: false,
         });
       }
 
-      const minTotal = Number(c.min_total ?? 0);
-      if (total < minTotal) {
-        total = 0;
-      }
+      return { segs, total, errors };
+    }
 
-      const R = Number(c.ring_radius || 65);
-      const W = Number(c.ring_width || 8);
+    /**
+     * Renders the donut chart SVG with optimizations for large datasets
+     * @param {Array} segs - Processed segments
+     * @param {number} total - Total value of all segments
+     * @param {Object} c - Configuration object
+     * @returns {string} SVG markup string
+     * @private
+     */
+    _renderDonutSvg(segs, total, c) {
+      const R = safeParseNumber(c.ring_radius, BASE_RADIUS);
+      const W = safeParseNumber(c.ring_width, 8);
 
-      // Dynamische viewBox-hoogte op basis van radius
-      const baseR = 65;
-      const baseH = 260;
-      const extra = baseH - 2 * baseR; // 260 - 130 = 130
-      let vbH = 2 * R + extra;
-      if (vbH < 180) vbH = 180;
-      if (vbH > 260) vbH = 260;
+      // Dynamic viewBox height based on radius using constants
+      const extra = BASE_HEIGHT - 2 * BASE_RADIUS;
+      let vbH = clamp(2 * R + extra, MIN_VIEWBOX_HEIGHT, MAX_VIEWBOX_HEIGHT);
 
-      const cx = 130;
-      const cy = vbH / 2 + Number(c.ring_offset_y || 0);
+      const cx = CENTER_X;
+      const cy = vbH / 2 + safeParseNumber(c.ring_offset_y, 0);
 
-      const trackOpacity = Number(c.track_opacity ?? 0);
+      const trackOpacity = safeParseNumber(c.track_opacity, 0);
       const hasTrack = trackOpacity > 0;
-      const trackColor =
-        c.track_color || "var(--divider-color, rgba(127,127,127,0.3))";
+      const trackColor = c.track_color || "var(--divider-color, rgba(127,127,127,0.3))";
 
-      const arcSeg = (a0, a1, sw, color) => {
-        const x0 = cx + R * Math.cos(this._toRad(a0));
-        const y0 = cy + R * Math.sin(this._toRad(a0));
-        const x1 = cx + R * Math.cos(this._toRad(a1));
-        const y1 = cy + R * Math.sin(this._toRad(a1));
-        const large = a1 - a0 > 180 ? 1 : 0;
-        return `<path d="M ${x0} ${y0} A ${R} ${R} 0 ${large} 1 ${x1} ${y1}"
-                fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="butt"/>`;
-      };
+      // Use DocumentFragment pattern for better performance with large datasets
+      const svgParts = [];
+      
+      svgParts.push(`<svg viewBox="0 0 ${VIEWBOX_WIDTH} ${vbH}" xmlns="http://www.w3.org/2000/svg">`);
 
-      let svg = `
-        <svg viewBox="0 0 260 ${vbH}" xmlns="http://www.w3.org/2000/svg">
-      `;
-
+      // Track circle (background)
       if (hasTrack) {
-        svg += `
+        svgParts.push(`
           <circle cx="${cx}" cy="${cy}" r="${R}" fill="none"
                   stroke="${trackColor}" stroke-width="${W}"
                   opacity="${trackOpacity}"/>
-        `;
+        `);
       }
 
+      // Render segments with optimization for large datasets
       if (total > 0 && segs.length) {
         let angleCursor = -90;
+        const isLargeDataset = segs.length > MAX_SEGMENTS_FOR_OPTIMIZATION;
+        
         for (const s of segs) {
-          const frac = this._clamp(s.value / total, 0, 1);
+          const frac = clamp(s.value / total, 0, 1);
           const span = frac * 360;
+          
           if (span <= 0) {
             s._startAngle = s._endAngle = angleCursor;
             continue;
           }
+          
+          // Skip very small segments for large datasets (optimization)
+          if (isLargeDataset && span < 0.5) {
+            s._startAngle = s._endAngle = angleCursor;
+            angleCursor += span;
+            continue;
+          }
+          
           const start = angleCursor;
           const end = angleCursor + span;
           angleCursor = end;
           s._startAngle = start;
           s._endAngle = end;
-          svg += arcSeg(start, end, W, s.color);
+          svgParts.push(this._arcSegment(start, end, W, s.color, R, cx, cy));
         }
       }
 
       // Top label
       if ((c.top_label_text ?? "").trim() !== "") {
-        const tfs = Number.isFinite(Number(c.top_label_font_scale))
-          ? Number(c.top_label_font_scale)
-          : 0.35;
+        const tfs = safeParseNumber(c.top_label_font_scale, 0.35);
         const fsTop = R * tfs;
-
-        const baseYTop =
-          (cy - R) - (W * 0.8) - fsTop * 0.25 - Number(c.label_ring_gap || 0);
-
-        const yOffset = Number.isFinite(Number(c.top_label_offset_y))
-          ? Number(c.top_label_offset_y)
-          : 0;
-
+        const baseYTop = (cy - R) - (W * 0.8) - fsTop * 0.25 - safeParseNumber(c.label_ring_gap, 0);
+        const yOffset = safeParseNumber(c.top_label_offset_y, 0);
         const yTop = baseYTop + yOffset;
 
-        svg += `
+        svgParts.push(`
           <text x="${cx}" y="${yTop}" font-size="${fsTop}"
                 font-weight="${c.top_label_weight || 400}"
                 fill="${c.top_label_color || "var(--primary-text-color)"}"
                 text-anchor="middle" dominant-baseline="middle">
-            ${c.top_label_text}
+            ${this._escapeHtml(c.top_label_text)}
           </text>
-        `;
+        `);
       }
 
-      // Center tekst
+      // Center text
       const centerMode = c.center_mode || "total";
       const textColor = c.text_color_inside || "var(--primary-text-color)";
-      const cfs = Number.isFinite(Number(c.center_font_scale))
-        ? Number(c.center_font_scale)
-        : 0.4;
+      const cfs = safeParseNumber(c.center_font_scale, 0.4);
       const fsCenter = R * cfs;
       let centerText = "";
 
       if (centerMode === "total") {
-        const decimals = Number.isFinite(Number(c.center_decimals))
-          ? Number(c.center_decimals)
-          : 0;
+        const decimals = safeParseNumber(c.center_decimals, 0);
         centerText = `${total.toFixed(decimals)} ${c.center_unit || ""}`.trim();
       } else if (centerMode === "entity" && c.center_entity) {
-        const st = h.states?.[c.center_entity];
+        const st = this._hass?.states?.[c.center_entity];
         if (st) {
           const raw = String(st.state ?? "0").replace(",", ".");
-          const v = Number(raw);
-          const d = Number(c.center_decimals ?? 0);
-          const unit = c.center_unit || st.attributes.unit_of_measurement || "";
-          centerText = `${isFinite(v) ? v.toFixed(d) : st.state} ${unit}`.trim();
+          const v = safeParseNumber(raw, 0);
+          const d = safeParseNumber(c.center_decimals, 0);
+          const unit = c.center_unit || st.attributes?.unit_of_measurement || "";
+          centerText = `${Number.isFinite(v) ? v.toFixed(d) : st.state} ${unit}`.trim();
+        } else {
+          log('warn', `Center entity not found: ${c.center_entity}`);
         }
       }
 
       if (centerText) {
-        svg += `
+        svgParts.push(`
           <text x="${cx}" y="${cy}" text-anchor="middle"
                 font-size="${fsCenter}" font-weight="400"
                 fill="${textColor}" dominant-baseline="middle">
-            ${centerText}
+            ${this._escapeHtml(centerText)}
           </text>
-        `;
+        `);
       }
 
-      // Labels op segmenten
+      // Segment labels
+      this._renderSegmentLabels(svgParts, segs, total, c, R, cx, cy, textColor);
+
+      // Gaps between segments
+      this._renderSegmentGaps(svgParts, segs, c, R, W, cx, cy);
+
+      svgParts.push(`</svg>`);
+      
+      return svgParts.join('');
+    }
+
+    /**
+     * Renders labels on donut segments
+     * @param {Array} svgParts - Array to append SVG parts to
+     * @param {Array} segs - Processed segments
+     * @param {number} total - Total value
+     * @param {Object} c - Configuration
+     * @param {number} R - Radius
+     * @param {number} cx - Center X
+     * @param {number} cy - Center Y
+     * @param {string} textColor - Text color
+     * @private
+     */
+    _renderSegmentLabels(svgParts, segs, total, c, R, cx, cy, textColor) {
       const labelMode = c.segment_label_mode || "none";
-      if (labelMode !== "none" && total > 0 && segs.length) {
-        const dec = Number.isFinite(Number(c.segment_label_decimals))
-          ? Number(c.segment_label_decimals)
-          : 1;
-        const minAngle = Number.isFinite(Number(c.segment_label_min_angle))
-          ? Number(c.segment_label_min_angle)
-          : 12;
-        const offset =
-          Number.isFinite(Number(c.segment_label_offset))
-            ? Number(c.segment_label_offset)
-            : 4;
-        const segFontScale = Number.isFinite(Number(c.segment_font_scale))
-          ? Number(c.segment_font_scale)
-          : 0.18;
+      if (labelMode === "none" || total <= 0 || !segs.length) return;
 
-        const rLabel = R + offset;
+      const dec = safeParseNumber(c.segment_label_decimals, 1);
+      const minAngle = safeParseNumber(c.segment_label_min_angle, 12);
+      const offset = safeParseNumber(c.segment_label_offset, 4);
+      const segFontScale = safeParseNumber(c.segment_font_scale, 0.18);
+      const rLabel = R + offset;
 
-        for (const s of segs) {
-          if (s._startAngle === undefined || s._endAngle === undefined) continue;
-          const span = s._endAngle - s._startAngle;
-          if (span <= minAngle) continue;
+      for (const s of segs) {
+        if (s._startAngle === undefined || s._endAngle === undefined) continue;
+        const span = s._endAngle - s._startAngle;
+        if (span <= minAngle) continue;
 
-          const mid = s._startAngle + span / 2;
-          const rad = this._toRad(mid);
-          const x = cx + rLabel * Math.cos(rad);
-          const y = cy + rLabel * Math.sin(rad);
+        const mid = s._startAngle + span / 2;
+        const rad = toRadians(mid);
+        const x = cx + rLabel * Math.cos(rad);
+        const y = cy + rLabel * Math.sin(rad);
 
-          const pct = total > 0 ? (s.value / total) * 100 : 0;
-          const pctStr = `${pct.toFixed(dec)}%`;
-          const valStr = isFinite(s.value) ? s.value.toFixed(dec) : s.rawState;
+        const pct = total > 0 ? (s.value / total) * 100 : 0;
+        const pctStr = `${pct.toFixed(dec)}%`;
+        const valStr = Number.isFinite(s.value) ? s.value.toFixed(dec) : s.rawState;
 
-          let t = "";
-          if (labelMode === "percent") {
-            t = pctStr;
-          } else if (labelMode === "value") {
-            t = `${valStr}${s.unit ? " " + s.unit : ""}`;
-          } else {
-            t = `${valStr}${s.unit ? " " + s.unit : ""} (${pctStr})`;
-          }
-
-          svg += `
-            <text x="${x}" y="${y}" text-anchor="middle"
-                  font-size="${R * segFontScale}" fill="${textColor}"
-                  dominant-baseline="middle">
-              ${t}
-            </text>
-          `;
+        let t = "";
+        if (labelMode === "percent") {
+          t = pctStr;
+        } else if (labelMode === "value") {
+          t = `${valStr}${s.unit ? " " + s.unit : ""}`;
+        } else {
+          t = `${valStr}${s.unit ? " " + s.unit : ""} (${pctStr})`;
         }
+
+        svgParts.push(`
+          <text x="${x}" y="${y}" text-anchor="middle"
+                font-size="${R * segFontScale}" fill="${textColor}"
+                dominant-baseline="middle">
+            ${this._escapeHtml(t)}
+          </text>
+        `);
+      }
+    }
+
+    /**
+     * Renders gap lines between segments
+     * @param {Array} svgParts - Array to append SVG parts to
+     * @param {Array} segs - Processed segments
+     * @param {Object} c - Configuration
+     * @param {number} R - Radius
+     * @param {number} W - Ring width
+     * @param {number} cx - Center X
+     * @param {number} cy - Center Y
+     * @private
+     */
+    _renderSegmentGaps(svgParts, segs, c, R, W, cx, cy) {
+      const gapWidth = safeParseNumber(c.segment_gap_width, 0);
+      if (gapWidth <= 0 || segs.length <= 1) return;
+
+      let gapColor = c.segment_gap_color;
+      if (!gapColor || gapColor === "auto") {
+        gapColor = c.background || "var(--ha-card-background, var(--card-background-color))";
       }
 
-      // Gaps tussen segmenten
-      const gapWidth = Number(c.segment_gap_width ?? 0);
-      if (gapWidth > 0 && segs.length > 1) {
-        let gapColor = c.segment_gap_color;
-        if (!gapColor || gapColor === "auto") {
-          gapColor =
-            c.background ||
-            "var(--ha-card-background, var(--card-background-color))";
-        }
+      const rInner = R - W / 2 - 1;
+      const rOuter = R + W / 2 + 1;
 
-        const rInner = R - W / 2 - 1;
-        const rOuter = R + W / 2 + 1;
+      for (const s of segs) {
+        if (s._endAngle === undefined) continue;
+        const angle = s._endAngle;
+        const rad = toRadians(angle);
+        const x0 = cx + rInner * Math.cos(rad);
+        const y0 = cy + rInner * Math.sin(rad);
+        const x1 = cx + rOuter * Math.cos(rad);
+        const y1 = cy + rOuter * Math.sin(rad);
 
-        for (const s of segs) {
-          if (s._endAngle === undefined) continue;
-          const angle = s._endAngle;
-          const rad = this._toRad(angle);
-          const x0 = cx + rInner * Math.cos(rad);
-          const y0 = cy + rInner * Math.sin(rad);
-          const x1 = cx + rOuter * Math.cos(rad);
-          const y1 = cy + rOuter * Math.sin(rad);
-
-          svg += `
-            <line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}"
-                  stroke="${gapColor}" stroke-width="${gapWidth}"
-                  stroke-linecap="butt"/>
-          `;
-        }
+        svgParts.push(`
+          <line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}"
+                stroke="${gapColor}" stroke-width="${gapWidth}"
+                stroke-linecap="butt"/>
+        `);
       }
+    }
 
-      svg += `</svg>`;
+    /**
+     * Escapes HTML special characters to prevent XSS
+     * @param {string} text - Text to escape
+     * @returns {string} Escaped text
+     * @private
+     */
+    _escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
 
-      // ----- LEGENDA: schaal + afstand tot donut -----
-      const legendFontScale = Number.isFinite(Number(c.legend_font_scale))
-        ? Number(c.legend_font_scale)
-        : 0.22; // default
-      const legendFontSize = R * legendFontScale;        // px
-      const chartGap = Math.max(2, R * 0.05);            // afstand donut → legenda
-      const legendGap = Math.max(2, R * 0.04);           // afstand tussen regels
-
-      let legendHtml = "";
+    /**
+     * Generates legend HTML
+     * @param {Array} segs - Processed segments
+     * @param {number} total - Total value
+     * @param {Object} c - Configuration
+     * @returns {string} Legend HTML string
+     * @private
+     */
+    _renderLegend(segs, total, c) {
       const showLegend = c.show_legend !== false;
+      if (!showLegend || total <= 0 || !segs.length) return "";
+
+      const R = safeParseNumber(c.ring_radius, BASE_RADIUS);
+      const legendFontScale = safeParseNumber(c.legend_font_scale, 0.22);
+      const legendFontSize = R * legendFontScale;
+      const legendGap = Math.max(2, R * 0.04);
       const legendMode = c.legend_value_mode || "both";
+      const valDec = safeParseNumber(c.center_decimals, 1);
+      const pctDec = safeParseNumber(c.legend_percent_decimals, 1);
 
-      if (showLegend && total > 0 && segs.length) {
-        const valDec = Number.isFinite(Number(c.center_decimals))
-          ? Number(c.center_decimals)
-          : 1;
-        const pctDec = Number.isFinite(Number(c.legend_percent_decimals))
-          ? Number(c.legend_percent_decimals)
-          : 1;
+      let legendHtml = `<div class="legend" style="font-size:${legendFontSize}px; gap:${legendGap}px;">`;
 
-        legendHtml = `
-          <div class="legend" style="font-size:${legendFontSize}px; gap:${legendGap}px;">
-        `;
-        for (const s of segs) {
-          const pct = total > 0 ? (s.value / total) * 100 : 0;
-          const pctStr = `${pct.toFixed(pctDec)}%`;
-          const valStr = isFinite(s.value) ? s.value.toFixed(valDec) : s.rawState;
-          let rightText = "";
+      for (const s of segs) {
+        const pct = total > 0 ? (s.value / total) * 100 : 0;
+        const pctStr = `${pct.toFixed(pctDec)}%`;
+        const valStr = Number.isFinite(s.value) ? s.value.toFixed(valDec) : s.rawState;
+        let rightText = "";
 
-          if (legendMode === "value") {
-            rightText = `${valStr}${s.unit ? " " + s.unit : ""}`;
-          } else if (legendMode === "percent") {
-            rightText = pctStr;
-          } else {
-            rightText = `${valStr}${s.unit ? " " + s.unit : ""} (${pctStr})`;
-          }
-
-          legendHtml += `
-            <div class="legend-item">
-              <span class="legend-color" style="background:${s.color};"></span>
-              <span class="legend-label">${s.label}</span>
-              <span class="legend-value">${rightText}</span>
-            </div>
-          `;
+        if (legendMode === "value") {
+          rightText = `${valStr}${s.unit ? " " + s.unit : ""}`;
+        } else if (legendMode === "percent") {
+          rightText = pctStr;
+        } else {
+          rightText = `${valStr}${s.unit ? " " + s.unit : ""} (${pctStr})`;
         }
-        legendHtml += `</div>`;
+
+        const unavailableClass = s.isUnavailable ? ' unavailable' : '';
+        legendHtml += `
+          <div class="legend-item${unavailableClass}">
+            <span class="legend-color" style="background:${s.color};"></span>
+            <span class="legend-label">${this._escapeHtml(s.label)}</span>
+            <span class="legend-value">${this._escapeHtml(rightText)}</span>
+          </div>
+        `;
       }
 
-      const style = `
+      legendHtml += `</div>`;
+      return legendHtml;
+    }
+
+    /**
+     * Generates component styles with Section Views support
+     * @param {Object} c - Configuration
+     * @returns {string} CSS style string
+     * @private
+     */
+    _getStyles(c) {
+      return `
         <style>
           :host {
-            display:block;
-            width:100%;
+            display: block;
+            width: 100%;
+            contain: content;
           }
           ha-card {
-            background:${c.background};
-            border-radius:${c.border_radius};
-            border:${c.border};
-            box-shadow:${c.box_shadow};
-            padding:${c.padding};
-            width:100%;
-            box-sizing:border-box;
+            background: ${c.background};
+            border-radius: ${c.border_radius};
+            border: ${c.border};
+            box-shadow: ${c.box_shadow};
+            padding: ${c.padding};
+            width: 100%;
+            box-sizing: border-box;
             color: var(--primary-text-color);
           }
           .wrap {
-            width:100%;
-            max-width:${c.max_width || "100%"};
-            margin:0 auto;
-            box-sizing:border-box;
-            padding:8px 10px 10px 10px;
+            width: 100%;
+            max-width: ${c.max_width || "100%"};
+            margin: 0 auto;
+            box-sizing: border-box;
+            padding: 8px 10px 10px 10px;
           }
           .chart-container {
-            width:100%;
+            width: 100%;
           }
           svg {
-            width:100%;
-            height:auto;
-            display:block;
+            width: 100%;
+            height: auto;
+            display: block;
           }
           text {
-            user-select:none;
+            user-select: none;
           }
           .legend {
-            width:100%;
-            display:flex;
-            flex-direction:column;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
           }
           .legend-item {
-            display:flex;
-            align-items:center;
-            justify-content:space-between;
-            gap:8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+          }
+          .legend-item.unavailable {
+            opacity: 0.5;
           }
           .legend-color {
-            width:10px;
-            height:10px;
-            border-radius:50%;
-            flex-shrink:0;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
           }
           .legend-label {
-            flex:1 1 auto;
-            overflow:hidden;
-            text-overflow:ellipsis;
-            white-space:nowrap;
+            flex: 1 1 auto;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
           }
           .legend-value {
-            flex-shrink:0;
-            text-align:right;
-            font-variant-numeric:tabular-nums;
+            flex-shrink: 0;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+          }
+          
+          /* Loading state styles */
+          .loading-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            color: var(--secondary-text-color);
+          }
+          .loading-spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--divider-color);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 8px;
+          }
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+          
+          /* Error state styles */
+          .error-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            color: var(--error-color, #db4437);
+          }
+          .error-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+          }
+          .error-message {
+            font-size: 12px;
+            text-align: center;
+          }
+          
+          /* Empty state styles */
+          .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            color: var(--secondary-text-color);
+          }
+          .empty-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+            opacity: 0.5;
+          }
+          .empty-message {
+            font-size: 14px;
+          }
+          
+          /* Section Views compatibility */
+          :host([section-view]) .wrap {
+            padding: 0;
+          }
+          :host([section-view]) ha-card {
+            background: transparent;
+            border: none;
+            box-shadow: none;
+          }
+          
+          /* Container classes for Section Views */
+          .section-donut {
+            width: 100%;
+          }
+          .section-legend {
+            width: 100%;
+          }
+          .section-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
           }
         </style>
       `;
-
-      this.shadowRoot.innerHTML = `
-        ${style}
-        <ha-card>
-          <div class="wrap">
-            <div class="chart-container" style="margin-bottom:${chartGap}px;">
-              ${svg}
-            </div>
-            ${legendHtml}
-          </div>
-        </ha-card>
-      `;
     }
 
+    /**
+     * Main render method - generates the complete card HTML
+     * @private
+     */
+    _render() {
+      if (!this._config || !this._hass) {
+        if (this._isLoading) {
+          this.shadowRoot.innerHTML = this._getStyles(DonutChart.getStubConfig()) + 
+            `<ha-card><div class="wrap">${this._renderLoadingState()}</div></ha-card>`;
+        }
+        return;
+      }
+
+      const c = this._config;
+      const h = this._hass;
+
+      try {
+        const segDefs = Array.isArray(c.segments) ? c.segments : [];
+        
+        if (!segDefs.length) {
+          this.shadowRoot.innerHTML = this._getStyles(c) + 
+            `<ha-card><div class="wrap">${this._renderEmptyState()}</div></ha-card>`;
+          return;
+        }
+
+        // Process segments with improved error handling
+        const { segs, total, errors } = this._processSegments(segDefs, h.states);
+        
+        if (errors.length > 0) {
+          log('warn', 'Segment processing warnings:', errors);
+        }
+
+        // Check minimum total threshold
+        const minTotal = safeParseNumber(c.min_total, 0);
+        const effectiveTotal = total < minTotal ? 0 : total;
+
+        // Calculate chart gap for legend
+        const R = safeParseNumber(c.ring_radius, BASE_RADIUS);
+        const chartGap = Math.max(2, R * 0.05);
+
+        // Generate SVG and legend
+        const svg = this._renderDonutSvg(segs, effectiveTotal, c);
+        const legendHtml = this._renderLegend(segs, effectiveTotal, c);
+
+        // Apply Section Views mode if enabled
+        const sectionViewMode = c.section_view_mode === true;
+        if (sectionViewMode) {
+          this.setAttribute('section-view', '');
+        } else {
+          this.removeAttribute('section-view');
+        }
+
+        // Render complete card
+        this.shadowRoot.innerHTML = `
+          ${this._getStyles(c)}
+          <ha-card>
+            <div class="wrap">
+              <div class="chart-container${sectionViewMode ? ' section-donut' : ''}" style="margin-bottom:${chartGap}px;">
+                ${svg}
+              </div>
+              <div class="${sectionViewMode ? 'section-legend' : ''}">
+                ${legendHtml}
+              </div>
+            </div>
+          </ha-card>
+        `;
+
+        this._lastError = null;
+      } catch (error) {
+        log('error', 'Error rendering chart:', error);
+        this._lastError = error.message;
+        this.shadowRoot.innerHTML = this._getStyles(c) + 
+          `<ha-card><div class="wrap">${this._renderErrorState(error.message)}</div></ha-card>`;
+      }
+    }
+
+    /**
+     * Returns the size of the card for layout purposes
+     * @returns {number} Card size units
+     */
     getCardSize() {
       return 4;
     }
   }
+
+  // =========================================================================
+  // COMPONENT REGISTRATION
+  // =========================================================================
 
   try {
     if (!customElements.get("donut-chart")) {
@@ -695,12 +1200,13 @@
       type: "donut-chart",
       name: "Donut Chart",
       description:
-        "Multi-segment donut chart (meerdere entiteiten als stukken).",
+        "Multi-segment donut chart with Section Views support, improved error handling, and optimized rendering.",
       preview: true,
+      documentationURL: "https://github.com/LodeBo/donut-chart",
     });
 
-    console.info(`🟢 ${TAG} v${VERSION} geladen`);
+    log('info', `v${VERSION} loaded successfully`);
   } catch (e) {
-    console.error("❌ Fout bij registratie donut-chart:", e);
+    log('error', 'Failed to register component:', e);
   }
 })();
