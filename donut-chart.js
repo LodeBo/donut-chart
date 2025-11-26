@@ -9,7 +9,7 @@
  * - Labels per segment
  * - Rechte gleuven tussen segmenten
  * - UI-editor (ha-form) voor de belangrijkste opties
- * - Kaart heeft "natuurlijke" hoogte (geen 100%), legenda schuift mee met donut
+ * - "Natuurlijke" hoogte: donut + legenda vormen één blok
  */
 
 (() => {
@@ -238,12 +238,14 @@
           { entity: "sensor.example_3", label: "Zone 3", color: "#3b82f6" },
         ],
 
+        // Centertekst
         center_mode: "total",
         center_entity: "",
         center_unit: "kWh",
         center_decimals: 2,
         center_font_scale: 0.4,
 
+        // Top label
         top_label_text: "Donut",
         top_label_weight: 400,
         top_label_color: "var(--primary-text-color)",
@@ -251,11 +253,13 @@
         top_label_font_scale: 0.35,
         top_label_offset_y: 0,
 
+        // Ring
         ring_radius: 65,
         ring_width: 8,
         ring_offset_y: 0,
         label_ring_gap: 17,
 
+        // Kaartstijl
         background: "var(--ha-card-background, var(--card-background-color))",
         border_radius: "12px",
         border: "1px solid var(--ha-card-border-color, rgba(0,0,0,0.12))",
@@ -267,16 +271,19 @@
 
         min_total: 0,
 
+        // Legenda
         show_legend: true,
         legend_value_mode: "both",
         legend_percent_decimals: 1,
 
+        // Segmentlabels
         segment_label_mode: "value",
         segment_label_decimals: 1,
         segment_label_min_angle: 12,
         segment_label_offset: 4,
         segment_font_scale: 0.18,
 
+        // Gaps
         segment_gap_width: 3,
         segment_gap_color: "auto",
       };
@@ -599,7 +606,7 @@
             position:relative;
             box-sizing:border-box;
             padding:8px 10px 10px 10px;
-            gap:6px;
+            gap:6px;                  /* afstand tussen donut en legenda */
           }
           .chart-container {
             width:100%;
