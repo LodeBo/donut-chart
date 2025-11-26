@@ -1,5 +1,5 @@
 /*!
- * 🟢 Donut Chart v2.0.4
+ * 🟢 Donut Chart v2.0.5
  * Multi-segment donut (pizza/taart) voor Home Assistant
  * - Meerdere entiteiten als segmenten
  * - Centertekst: totaal of aparte entiteit
