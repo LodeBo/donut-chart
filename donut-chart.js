@@ -1,11 +1,11 @@
 /*!
- * 🟢 Donut Chart v2.3.2
+ * 🟢 Donut Chart v2.4.0
  * Multi-segment donut (pizza/taart) voor Home Assistant
  * - Meerdere entiteiten als segmenten
  * - Centertekst: totaal of aparte entiteit
  * - Top-label boven de ring (met schaal + offset)
  * - Theme-aware
- * - Legenda onderaan (aparte decimalen voor %)
+ * - Legenda onderaan (aparte decimalen voor waarde & %)
  * - Labels per segment
  * - Rechte gleuven tussen segmenten
  * - UI-editor (ha-form)
@@ -16,7 +16,7 @@
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "2.3.2";
+  const VERSION = "2.4.0";
 
   // ---------- UI EDITOR ----------
 
@@ -47,12 +47,12 @@
         {
           name: "top_label_font_scale",
           label: "Top label grootte (relatief)",
-          selector: { number: { min: 0.1, max: 1, step: 0.05 } },
+          selector: { number: {} },
         },
         {
           name: "top_label_offset_y",
           label: "Top label offset Y",
-          selector: { number: { min: -50, max: 50, step: 1 } },
+          selector: { number: {} },
         },
         {
           name: "center_mode",
@@ -80,22 +80,12 @@
         {
           name: "center_decimals",
           label: "Decimalen center / waarden",
-          selector: { number: { min: 0, max: 4, step: 1 } },
+          selector: { number: {} },
         },
         {
           name: "center_font_scale",
           label: "Grootte centertekst (relatief)",
-          selector: { number: { min: 0.1, max: 1, step: 0.05 } },
-        },
-        {
-          name: "segment_gap_width",
-          label: "Breedte gap tussen segmenten (px)",
-          selector: { number: { min: 0, max: 12, step: 1 } },
-        },
-        {
-          name: "segment_gap_color",
-          label: "Kleur gap (auto = kaartachtergrond)",
-          selector: { text: {} },
+          selector: { number: {} },
         },
         {
           name: "segment_label_mode",
@@ -114,7 +104,7 @@
         {
           name: "segment_label_decimals",
           label: "Decimalen segment-labels",
-          selector: { number: { min: 0, max: 4, step: 1 } },
+          selector: { number: {} },
         },
         {
           name: "show_legend",
@@ -135,49 +125,44 @@
           },
         },
         {
+          name: "legend_value_decimals",
+          label: "Decimalen waarde in legenda",
+          selector: { number: {} },
+        },
+        {
           name: "legend_percent_decimals",
           label: "Decimalen percentage in legenda",
-          selector: { number: { min: 0, max: 4, step: 1 } },
+          selector: { number: {} },
         },
         {
           name: "legend_font_scale",
           label: "Legenda tekstgrootte (relatief t.o.v. radius)",
-          selector: { number: { min: 0.05, max: 0.4, step: 0.01 } },
+          selector: { number: {} },
         },
         {
           name: "legend_offset_y",
-          label: "Afstand tussen donut en legenda (offset, mag negatief)",
-          selector: { number: { min: -80, max: 80, step: 1 } },
+          label: "Afstand tussen donut en legenda (mag negatief)",
+          selector: { number: {} },
         },
         {
           name: "ring_radius",
           label: "Ring radius",
-          selector: { number: { min: 30, max: 120, step: 1 } },
+          selector: { number: {} },
         },
         {
           name: "ring_width",
           label: "Ring dikte",
-          selector: { number: { min: 4, max: 40, step: 1 } },
+          selector: { number: {} },
         },
         {
           name: "ring_offset_y",
           label: "Ring offset Y",
-          selector: { number: { min: -60, max: 60, step: 1 } },
+          selector: { number: {} },
         },
         {
           name: "label_ring_gap",
           label: "Afstand tussen ring en top label",
-          selector: { number: { min: 0, max: 60, step: 1 } },
-        },
-        {
-          name: "max_width",
-          label: "Max breedte donut (bv. 100% of 420px)",
-          selector: { text: {} },
-        },
-        {
-          name: "background",
-          label: "Kaart achtergrond (optioneel)",
-          selector: { text: {} },
+          selector: { number: {} },
         },
       ];
     }
@@ -209,7 +194,7 @@
           @value-changed=${this._valueChanged}
         ></ha-form>
         <p style="margin-top:8px; font-size:0.8rem; opacity:0.7;">
-          Tip: segmenten (entiteiten + kleuren) blijven voorlopig via YAML
+          Tip: segmenten (entiteiten + kleuren) stel je in via YAML
           (<code>segments:</code>).
         </p>
       `;
@@ -281,6 +266,7 @@
 
         show_legend: true,
         legend_value_mode: "both",
+        legend_value_decimals: 2,
         legend_percent_decimals: 1,
         legend_font_scale: 0.22,
         legend_offset_y: 0,
@@ -291,6 +277,7 @@
         segment_label_offset: 4,
         segment_font_scale: 0.18,
 
+        // Gap blijft configureerbaar via YAML, maar niet in de UI
         segment_gap_width: 3,
         segment_gap_color: "auto",
       };
@@ -472,7 +459,7 @@
           <text x="${cx}" y="${cy}" text-anchor="middle"
                 font-size="${fsCenter}" font-weight="400"
                 fill="${textColor}" dominant-baseline="middle">
-              ${centerText}
+            ${centerText}
           </text>
         `;
       }
@@ -529,7 +516,7 @@
         }
       }
 
-      // Gaps tussen segmenten (FIX: rOuter correct gebruiken voor y1)
+      // Gaps tussen segmenten (breedte/kleur via YAML, niet in UI)
       const gapWidth = Number(c.segment_gap_width ?? 0);
       if (gapWidth > 0 && segs.length > 1) {
         let gapColor = c.segment_gap_color;
@@ -549,7 +536,7 @@
           const x0 = cx + rInner * Math.cos(rad);
           const y0 = cy + rInner * Math.sin(rad);
           const x1 = cx + rOuter * Math.cos(rad);
-          const y1 = cy + rOuter * Math.sin(rad); // ✅ correcte rOuter
+          const y1 = cy + rOuter * Math.sin(rad);
 
           svg += `
             <line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}"
@@ -582,8 +569,8 @@
       const legendMode = c.legend_value_mode || "both";
 
       if (showLegend && total > 0 && segs.length) {
-        const valDec = Number.isFinite(Number(c.center_decimals))
-          ? Number(c.center_decimals)
+        const valDec = Number.isFinite(Number(c.legend_value_decimals))
+          ? Number(c.legend_value_decimals)
           : 1;
         const pctDec = Number.isFinite(Number(c.legend_percent_decimals))
           ? Number(c.legend_percent_decimals)
