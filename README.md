@@ -118,11 +118,11 @@ This will:
 
 ---
 
-## Configuration options
+## Configuration options (with allowed values)
 
-### Segments
+### Segments (YAML only)
 
-> Defined in YAML (not via UI). Each segment is one entity/label/color triple.
+Defined in YAML (not via UI). Each segment is one entity/label/color triple.
 
 ```yaml
 segments:
@@ -134,11 +134,13 @@ segments:
     color: '#22c55e'
 ```
 
-- `entity` (required): sensor entity id  
-- `label` (optional): label in the legend (defaults to entity id)  
-- `color` (optional): CSS color (hex, rgb, `var(--…)`)
+| Option  | Type   | Required | Allowed / Meaning                          |
+|--------|--------|----------|--------------------------------------------|
+| `entity` | string | ✅      | Any numeric entity id (sensor, etc.)      |
+| `label`  | string | ❌      | Free text, shown in the legend            |
+| `color`  | string | ❌      | Any CSS color (`#rrggbb`, `rgb()`, `var()`)|
 
-States are parsed as numbers; negative values are treated as 0.
+States are parsed as numbers; **negative values are treated as 0**.
 
 ---
 
@@ -146,15 +148,19 @@ States are parsed as numbers; negative values are treated as 0.
 
 ```yaml
 center_mode: total     # "total" | "entity" | "none"
-center_entity: sensor.solar_roof   # used only if center_mode: entity
+center_entity: sensor.solar_roof   # only for center_mode: entity
 center_unit: kWh
 center_decimals: 2
-center_font_scale: 0.4   # 0.1–1.0 (relative to radius)
+center_font_scale: 0.4   # 0.1–1.0
 ```
 
-- `center_mode: total` → show sum of all segment values  
-- `center_mode: entity` → show a specific entity’s value  
-- `center_mode: none` → hide center text  
+| Option             | Type    | Default | Allowed values / range                        |
+|--------------------|---------|---------|----------------------------------------------|
+| `center_mode`      | string  | `total` | `total`, `entity`, `none`                    |
+| `center_entity`    | string  | `""`    | Any entity id (used only when mode=`entity`) |
+| `center_unit`      | string  | `""`    | Free text (e.g. `kWh`, `€`)                  |
+| `center_decimals`  | number  | `2`     | `0`–`6`                                      |
+| `center_font_scale`| number  | `0.4`   | `0.1`–`1.0` (relative to `ring_radius`)      |
 
 ---
 
@@ -165,9 +171,18 @@ top_label_text: Solar year 2025
 top_label_weight: 600
 top_label_color: var(--primary-text-color)
 top_label_font_scale: 0.35    # 0.1–1.0
-top_label_offset_y: 0         # -100 to 100 (move label up/down)
-label_ring_gap: 17            # distance from ring to top label
+top_label_offset_y: 0         # -100–100
+label_ring_gap: 17            # 0–60
 ```
+
+| Option                 | Type    | Default | Allowed values / range                  |
+|------------------------|---------|---------|----------------------------------------|
+| `top_label_text`       | string  | `"Donut"` | Any text (empty = no top label)       |
+| `top_label_weight`     | number  | `400`   | Typical font-weight (e.g. 300–700)    |
+| `top_label_color`      | string  | theme   | CSS color / theme var                  |
+| `top_label_font_scale` | number  | `0.35`  | `0.1`–`1.0`                            |
+| `top_label_offset_y`   | number  | `0`     | `-100`–`100` (negative = omhoog)       |
+| `label_ring_gap`       | number  | `17`    | `0`–`60` (afstand tussen ring en label)|
 
 ---
 
@@ -176,25 +191,42 @@ label_ring_gap: 17            # distance from ring to top label
 ```yaml
 ring_radius: 65      # 30–120
 ring_width: 8        # 4–40
-ring_offset_y: 0     # -60–60 (move ring up/down)
+ring_offset_y: 0     # -60–60
 track_color: var(--divider-color)
-track_opacity: 0.0   # 0 = no background track, >0 = faint ring behind segments
-min_total: 0         # optional minimum to treat as "empty"
+track_opacity: 0.0   # 0.0–1.0
+min_total: 0
 ```
+
+| Option          | Type   | Default | Allowed values / range                          |
+|-----------------|--------|---------|------------------------------------------------|
+| `ring_radius`   | number | `65`    | `30`–`120` (grotere kaart = grotere radius)    |
+| `ring_width`    | number | `8`     | `4`–`40`                                       |
+| `ring_offset_y` | number | `0`     | `-60`–`60` (negatief = ring omhoog)           |
+| `track_color`   | string | theme   | CSS color                                      |
+| `track_opacity` | number | `0.0`   | `0.0`–`1.0` (`0` = geen achtergrondring)       |
+| `min_total`     | number | `0`     | Minimum som, daaronder wordt het als 0 gezien |
 
 ---
 
-### Segment labels on the donut (optional)
+### Segment labels op de donut (optioneel)
 
 ```yaml
 segment_label_mode: value    # "none" | "value" | "percent" | "both"
 segment_label_decimals: 1
-segment_label_min_angle: 12  # minimum segment angle in degrees for label
-segment_label_offset: 4      # distance outside the ring
+segment_label_min_angle: 12  # graden
+segment_label_offset: 4      # px buiten de ring
 segment_font_scale: 0.18     # 0.05–0.4
 ```
 
-The card automatically skips labels on very small segments (angle below `segment_label_min_angle`).
+| Option                  | Type    | Default | Allowed values / range                                |
+|-------------------------|---------|---------|------------------------------------------------------|
+| `segment_label_mode`    | string  | `value` | `none`, `value`, `percent`, `both`                   |
+| `segment_label_decimals`| number  | `1`     | `0`–`6`                                              |
+| `segment_label_min_angle`| number | `12`    | `0`–`360` (minimum segmenthoek voor een label)       |
+| `segment_label_offset`  | number  | `4`     | Meestal `0`–`20`, afstand buiten de ring             |
+| `segment_font_scale`    | number  | `0.18`  | `0.05`–`0.4`                                         |
+
+Bij te kleine segmenten (hoek < `segment_label_min_angle`) wordt het label automatisch weggelaten.
 
 ---
 
@@ -205,48 +237,85 @@ show_legend: true
 legend_value_mode: both        # "value" | "percent" | "both"
 legend_value_decimals: 2
 legend_percent_decimals: 1
-legend_font_scale: 0.22        # 0.05–0.4, relative to radius
-legend_offset_y: -20           # -80–80, distance between donut and legend
+legend_font_scale: 0.22        # 0.05–0.4
+legend_offset_y: -20           # -80–80
 ```
 
-- **Font size** scales with `ring_radius` and `legend_font_scale`.  
-- **Distance between donut and legend** is controlled by `legend_offset_y`:
-  - Positive = more space  
-  - Negative = bring legend closer to the donut (even *very* close if you want it compact)
+| Option                    | Type    | Default | Allowed values / range                                 |
+|---------------------------|---------|---------|-------------------------------------------------------|
+| `show_legend`             | boolean | `true`  | `true` of `false`                                     |
+| `legend_value_mode`       | string  | `both`  | `value`, `percent`, `both`                            |
+| `legend_value_decimals`   | number  | `2`     | `0`–`6`                                               |
+| `legend_percent_decimals` | number  | `1`     | `0`–`6`                                               |
+| `legend_font_scale`       | number  | `0.22`  | `0.05`–`0.4` (relatief t.o.v. `ring_radius`)         |
+| `legend_offset_y`         | number  | `0`     | `-80`–`80` (negatief = dichter bij de donut)         |
+
+- **Legenda kleiner/groter** → pas `legend_font_scale` aan.  
+- **Afstand tussen donut en legenda** → gebruik `legend_offset_y` (negatief voor compacte kaart).
 
 ---
 
-### Segment gaps
-
-By default, the card draws small gaps between segments to mimic a modern pie chart.
+### Segment gaps (YAML only)
 
 ```yaml
 segment_gap_width: 3          # 0 = no gaps
-segment_gap_color: auto       # "auto" = card background, or any CSS color
+segment_gap_color: auto       # "auto" of CSS kleur
 ```
 
-> These options are **YAML-only** (not shown in the UI editor).  
-> `segment_gap_color: auto` picks up the card background so the gaps blend nicely with your theme.
+| Option             | Type   | Default | Allowed values / range                              |
+|--------------------|--------|---------|----------------------------------------------------|
+| `segment_gap_width`| number | `3`     | `0`–`10` (0 = geen gleuven tussen segmenten)       |
+| `segment_gap_color`| string | `auto`  | `auto` (= achtergrond) of CSS kleur (`#000`, `var`) |
+
+`auto` probeert de kaartachtergrond te gebruiken zodat de gaps samensmelten met het thema.
+
+---
+
+### Kaart / layout
+
+```yaml
+background: var(--ha-card-background, var(--card-background-color))
+border_radius: 12px
+border: 1px solid var(--ha-card-border-color, rgba(0,0,0,0.12))
+box_shadow: none
+padding: 0px
+max_width: 100%
+```
+
+| Option          | Type   | Default | Allowed values / range                     |
+|-----------------|--------|---------|-------------------------------------------|
+| `background`    | string | theme   | CSS kleur / gradient                      |
+| `border_radius` | string | `12px`  | e.g. `0`, `12px`, `1rem`                  |
+| `border`        | string | theme   | CSS border string                         |
+| `box_shadow`    | string | `none`  | CSS box-shadow                            |
+| `padding`       | string | `0px`   | CSS padding                               |
+| `max_width`     | string | `100%`  | e.g. `100%`, `520px`                      |
+
+In **sections** kun je eventueel ook nog `layout_options` gebruiken:
+
+```yaml
+layout_options:
+  grid_rows: auto        # meestal op auto laten
+  grid_columns: 4        # aantal kolommen in de sectie
+```
 
 ---
 
 ## Theme integration
 
-The card uses Home Assistant theme variables:
+De kaart gebruikt Home Assistant theme-variabelen:
 
-- `var(--ha-card-background, var(--card-background-color))` for the card background  
-- `var(--primary-text-color)` for text  
-- `var(--divider-color)` as default track color  
+- `var(--ha-card-background, var(--card-background-color))` → kaartbackground  
+- `var(--primary-text-color)` → tekstkleur  
+- `var(--divider-color)` → standaard trackkleur  
 
-So it should look good in both light and dark themes without extra styling.
+Zonder extra styling werkt de kaart in zowel licht als donker thema.
 
 ---
 
 ## Using in sections (grid layout)
 
-The card is designed to behave nicely in **sections** and grids.
-
-Recommended when using this card inside a section:
+Aanbevolen voorbeeld in een sectie:
 
 ```yaml
 type: custom:donut-chart
@@ -262,25 +331,17 @@ center_mode: total
 center_unit: kWh
 top_label_text: Solar year 2025
 
-# Optional layout tuning in sections:
 layout_options:
-  grid_rows: auto      # let Home Assistant decide the height
-  grid_columns: 4      # adjust to match your grid
+  grid_rows: auto
+  grid_columns: 4
 ```
 
-- In most cases, **leave `grid_rows` on `auto`** and adjust the donut itself using:
-  - `ring_radius`
-  - `legend_font_scale`
-  - `legend_offset_y`
-
-Home Assistant controls the “grid slots” in sections;  
-this card handles scaling **inside** the space it gets.
+- Laat `grid_rows` op `auto`  
+- Tuning doe je met `ring_radius`, `legend_font_scale`, `legend_offset_y`, enz.
 
 ---
 
 ## Example: Energy split
-
-A more complete example for energy distribution:
 
 ```yaml
 type: custom:donut-chart
@@ -303,7 +364,7 @@ center_unit: kWh
 center_decimals: 1
 center_font_scale: 0.42
 
-segment_label_mode: none        # keep donut clean
+segment_label_mode: none
 segment_gap_width: 3
 segment_gap_color: auto
 
