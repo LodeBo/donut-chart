@@ -1,5 +1,5 @@
 /*!
- * 🟢 Donut Chart v2.3.1
+ * 🟢 Donut Chart v2.3.2
  * Multi-segment donut (pizza/taart) voor Home Assistant
  * - Meerdere entiteiten als segmenten
  * - Centertekst: totaal of aparte entiteit
@@ -11,12 +11,12 @@
  * - UI-editor (ha-form)
  * - SVG-hoogte schaalt mee met ring_radius
  * - Legenda schaalt mee (font + afstand tot donut)
- * - legend_offset_y: afstand donut ↔ legenda (mag nu ook NEGATIEF)
+ * - legend_offset_y: afstand donut ↔ legenda (mag negatief)
  */
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "2.3.1";
+  const VERSION = "2.3.2";
 
   // ---------- UI EDITOR ----------
 
@@ -472,7 +472,7 @@
           <text x="${cx}" y="${cy}" text-anchor="middle"
                 font-size="${fsCenter}" font-weight="400"
                 fill="${textColor}" dominant-baseline="middle">
-            ${centerText}
+              ${centerText}
           </text>
         `;
       }
@@ -529,7 +529,7 @@
         }
       }
 
-      // Gaps tussen segmenten
+      // Gaps tussen segmenten (FIX: rOuter correct gebruiken voor y1)
       const gapWidth = Number(c.segment_gap_width ?? 0);
       if (gapWidth > 0 && segs.length > 1) {
         let gapColor = c.segment_gap_color;
@@ -549,7 +549,7 @@
           const x0 = cx + rInner * Math.cos(rad);
           const y0 = cy + rInner * Math.sin(rad);
           const x1 = cx + rOuter * Math.cos(rad);
-          const y1 = cy + R * Math.sin(rad);
+          const y1 = cy + rOuter * Math.sin(rad); // ✅ correcte rOuter
 
           svg += `
             <line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}"
@@ -571,9 +571,7 @@
         ? Number(c.legend_offset_y)
         : 0;
 
-      // basisafstand afhankelijk van radius + user offset
       let chartGap = (R - 40) * 0.4 + userLegendOffset;
-      // beetje limiet zodat het niet compleet ontspoort
       if (chartGap < -80) chartGap = -80;
       if (chartGap > 80) chartGap = 80;
 
