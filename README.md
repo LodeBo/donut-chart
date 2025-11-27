@@ -52,38 +52,53 @@ A fast, theme-aware, multi-segment **donut / pie chart** for Home Assistant Love
 
 ## Installation
 
-### 1. Download
+You can install this card **manually** or via **HACS**.
 
-Copy `donut-chart.js` into your `www` folder (usually `config/www/`):
+### Option A – Manual installation
 
-```text
-config/www/donut-chart.js
-```
+1. Copy `donut-chart.js` into your `www` folder (usually `config/www/`):
 
-Or use HACS as a custom repository (if you publish it there).
+   ```text
+   config/www/donut-chart.js
+   ```
 
-### 2. Add as Lovelace resource
+2. Add the resource in Home Assistant:
 
-In Home Assistant:
+   - Go to **Settings → Dashboards → (⋮) → Resources → Add resource**
+   - Add:
 
-**Settings → Dashboards → (⋮) → Resources → Add resource**
+     ```yaml
+     url: /local/donut-chart.js
+     type: module
+     ```
 
-```yaml
-url: /local/donut-chart.js
-type: module
-```
+3. Refresh the dashboard (clear browser cache if needed), then add a new card and search for **“Donut Chart”**  
+   or use a **Manual card** with the YAML examples below.
 
-If you use HACS, the URL might look like:
+---
 
-```yaml
-url: /hacsfiles/donut-chart/donut-chart.js
-type: module
-```
+### Option B – HACS (Custom repository)
 
-### 3. Use the card
+> Replace `<your-username>/<your-repo>` with the actual GitHub repo for this card  
+> (for example: `LodeBo/donut-chart`).
 
-In the dashboard UI, add a new card and search for **“Donut Chart”**  
-(or use **Manual card** and paste the YAML examples below).
+1. In Home Assistant, open **HACS → Frontend → (⋮) → Custom repositories**.
+2. Add:
+
+   - **Repository**: `https://github.com/<your-username>/<your-repo>`
+   - **Category**: `Lovelace`
+
+3. After adding, the card will appear in **HACS → Frontend**.  
+   Click **Download** / **Install** to install `donut-chart.js`.
+
+4. Make sure the resource is added automatically, or add it manually:
+
+   ```yaml
+   url: /hacsfiles/donut-chart/donut-chart.js
+   type: module
+   ```
+
+5. Reload the dashboard and add a **Donut Chart** card.
 
 ---
 
@@ -138,7 +153,7 @@ segments:
 |--------|--------|----------|--------------------------------------------|
 | `entity` | string | ✅      | Any numeric entity id (sensor, etc.)      |
 | `label`  | string | ❌      | Free text, shown in the legend            |
-| `color`  | string | ❌      | Any CSS color (`#rrggbb`, `rgb()`, `var()`)|
+| `color`  | string | ❌      | Any CSS color (`#rrggbb`, `rgb()`, `var()`) |
 
 States are parsed as numbers; **negative values are treated as 0**.
 
@@ -154,13 +169,13 @@ center_decimals: 2
 center_font_scale: 0.4   # 0.1–1.0
 ```
 
-| Option             | Type    | Default | Allowed values / range                        |
-|--------------------|---------|---------|----------------------------------------------|
-| `center_mode`      | string  | `total` | `total`, `entity`, `none`                    |
-| `center_entity`    | string  | `""`    | Any entity id (used only when mode=`entity`) |
-| `center_unit`      | string  | `""`    | Free text (e.g. `kWh`, `€`)                  |
-| `center_decimals`  | number  | `2`     | `0`–`6`                                      |
-| `center_font_scale`| number  | `0.4`   | `0.1`–`1.0` (relative to `ring_radius`)      |
+| Option              | Type    | Default | Allowed values / range                        |
+|---------------------|---------|---------|----------------------------------------------|
+| `center_mode`       | string  | `total` | `total`, `entity`, `none`                    |
+| `center_entity`     | string  | `""`    | Any entity id (used only when mode=`entity`) |
+| `center_unit`       | string  | `""`    | Free text (e.g. `kWh`, `€`)                  |
+| `center_decimals`   | number  | `2`     | `0`–`6`                                      |
+| `center_font_scale` | number  | `0.4`   | `0.1`–`1.0` (relative to `ring_radius`)      |
 
 ---
 
@@ -175,14 +190,14 @@ top_label_offset_y: 0         # -100–100
 label_ring_gap: 17            # 0–60
 ```
 
-| Option                 | Type    | Default | Allowed values / range                  |
-|------------------------|---------|---------|----------------------------------------|
-| `top_label_text`       | string  | `"Donut"` | Any text (empty = no top label)       |
-| `top_label_weight`     | number  | `400`   | Typical font-weight (e.g. 300–700)    |
-| `top_label_color`      | string  | theme   | CSS color / theme var                  |
-| `top_label_font_scale` | number  | `0.35`  | `0.1`–`1.0`                            |
-| `top_label_offset_y`   | number  | `0`     | `-100`–`100` (negative = omhoog)       |
-| `label_ring_gap`       | number  | `17`    | `0`–`60` (afstand tussen ring en label)|
+| Option                 | Type    | Default   | Allowed values / range                    |
+|------------------------|---------|-----------|------------------------------------------|
+| `top_label_text`       | string  | `"Donut"` | Any text (empty = no top label)          |
+| `top_label_weight`     | number  | `400`     | Typical font-weight (e.g. 300–700)       |
+| `top_label_color`      | string  | theme     | CSS color / theme var                    |
+| `top_label_font_scale` | number  | `0.35`    | `0.1`–`1.0`                              |
+| `top_label_offset_y`   | number  | `0`       | `-100`–`100` (negative = move up)        |
+| `label_ring_gap`       | number  | `17`      | `0`–`60` (distance between ring & label) |
 
 ---
 
@@ -197,36 +212,36 @@ track_opacity: 0.0   # 0.0–1.0
 min_total: 0
 ```
 
-| Option          | Type   | Default | Allowed values / range                          |
-|-----------------|--------|---------|------------------------------------------------|
-| `ring_radius`   | number | `65`    | `30`–`120` (grotere kaart = grotere radius)    |
-| `ring_width`    | number | `8`     | `4`–`40`                                       |
-| `ring_offset_y` | number | `0`     | `-60`–`60` (negatief = ring omhoog)           |
-| `track_color`   | string | theme   | CSS color                                      |
-| `track_opacity` | number | `0.0`   | `0.0`–`1.0` (`0` = geen achtergrondring)       |
-| `min_total`     | number | `0`     | Minimum som, daaronder wordt het als 0 gezien |
+| Option          | Type   | Default | Allowed values / range                           |
+|-----------------|--------|---------|-------------------------------------------------|
+| `ring_radius`   | number | `65`    | `30`–`120` (bigger card = bigger radius)        |
+| `ring_width`    | number | `8`     | `4`–`40`                                        |
+| `ring_offset_y` | number | `0`     | `-60`–`60` (negative = move ring up)            |
+| `track_color`   | string | theme   | CSS color                                       |
+| `track_opacity` | number | `0.0`   | `0.0`–`1.0` (`0` = no background ring)          |
+| `min_total`     | number | `0`     | Minimum sum; below this the donut is treated as 0 |
 
 ---
 
-### Segment labels op de donut (optioneel)
+### Segment labels on the donut (optional)
 
 ```yaml
 segment_label_mode: value    # "none" | "value" | "percent" | "both"
 segment_label_decimals: 1
-segment_label_min_angle: 12  # graden
-segment_label_offset: 4      # px buiten de ring
+segment_label_min_angle: 12  # degrees
+segment_label_offset: 4      # px outside the ring
 segment_font_scale: 0.18     # 0.05–0.4
 ```
 
-| Option                  | Type    | Default | Allowed values / range                                |
-|-------------------------|---------|---------|------------------------------------------------------|
-| `segment_label_mode`    | string  | `value` | `none`, `value`, `percent`, `both`                   |
-| `segment_label_decimals`| number  | `1`     | `0`–`6`                                              |
-| `segment_label_min_angle`| number | `12`    | `0`–`360` (minimum segmenthoek voor een label)       |
-| `segment_label_offset`  | number  | `4`     | Meestal `0`–`20`, afstand buiten de ring             |
-| `segment_font_scale`    | number  | `0.18`  | `0.05`–`0.4`                                         |
+| Option                   | Type    | Default | Allowed values / range                                 |
+|--------------------------|---------|---------|-------------------------------------------------------|
+| `segment_label_mode`     | string  | `value` | `none`, `value`, `percent`, `both`                    |
+| `segment_label_decimals` | number  | `1`     | `0`–`6`                                               |
+| `segment_label_min_angle`| number  | `12`    | `0`–`360` (minimum segment angle to show a label)     |
+| `segment_label_offset`   | number  | `4`     | Typically `0`–`20`, distance outside the ring         |
+| `segment_font_scale`     | number  | `0.18`  | `0.05`–`0.4`                                          |
 
-Bij te kleine segmenten (hoek < `segment_label_min_angle`) wordt het label automatisch weggelaten.
+For very small segments (angle < `segment_label_min_angle`), labels are automatically skipped.
 
 ---
 
@@ -241,17 +256,18 @@ legend_font_scale: 0.22        # 0.05–0.4
 legend_offset_y: -20           # -80–80
 ```
 
-| Option                    | Type    | Default | Allowed values / range                                 |
-|---------------------------|---------|---------|-------------------------------------------------------|
-| `show_legend`             | boolean | `true`  | `true` of `false`                                     |
-| `legend_value_mode`       | string  | `both`  | `value`, `percent`, `both`                            |
-| `legend_value_decimals`   | number  | `2`     | `0`–`6`                                               |
-| `legend_percent_decimals` | number  | `1`     | `0`–`6`                                               |
-| `legend_font_scale`       | number  | `0.22`  | `0.05`–`0.4` (relatief t.o.v. `ring_radius`)         |
-| `legend_offset_y`         | number  | `0`     | `-80`–`80` (negatief = dichter bij de donut)         |
+| Option                     | Type    | Default | Allowed values / range                                 |
+|----------------------------|---------|---------|-------------------------------------------------------|
+| `show_legend`              | boolean | `true`  | `true` or `false`                                     |
+| `legend_value_mode`        | string  | `both`  | `value`, `percent`, `both`                            |
+| `legend_value_decimals`    | number  | `2`     | `0`–`6`                                               |
+| `legend_percent_decimals`  | number  | `1`     | `0`–`6`                                               |
+| `legend_font_scale`        | number  | `0.22`  | `0.05`–`0.4` (relative to `ring_radius`)             |
+| `legend_offset_y`          | number  | `0`     | `-80`–`80` (negative = closer to the donut)          |
 
-- **Legenda kleiner/groter** → pas `legend_font_scale` aan.  
-- **Afstand tussen donut en legenda** → gebruik `legend_offset_y` (negatief voor compacte kaart).
+- To make the legend **smaller or larger** → change `legend_font_scale`.  
+- To change the **distance between donut and legend** → use `legend_offset_y`  
+  (negative values pull the legend closer to the ring).
 
 ---
 
@@ -259,19 +275,19 @@ legend_offset_y: -20           # -80–80
 
 ```yaml
 segment_gap_width: 3          # 0 = no gaps
-segment_gap_color: auto       # "auto" of CSS kleur
+segment_gap_color: auto       # "auto" or CSS color
 ```
 
-| Option             | Type   | Default | Allowed values / range                              |
-|--------------------|--------|---------|----------------------------------------------------|
-| `segment_gap_width`| number | `3`     | `0`–`10` (0 = geen gleuven tussen segmenten)       |
-| `segment_gap_color`| string | `auto`  | `auto` (= achtergrond) of CSS kleur (`#000`, `var`) |
+| Option              | Type   | Default | Allowed values / range                                |
+|---------------------|--------|---------|------------------------------------------------------|
+| `segment_gap_width` | number | `3`     | `0`–`10` (0 = no gap between segments)              |
+| `segment_gap_color` | string | `auto`  | `auto` (= card background) or any CSS color         |
 
-`auto` probeert de kaartachtergrond te gebruiken zodat de gaps samensmelten met het thema.
+`auto` tries to use the card background so gaps blend with the theme.
 
 ---
 
-### Kaart / layout
+### Card / layout styling
 
 ```yaml
 background: var(--ha-card-background, var(--card-background-color))
@@ -282,40 +298,40 @@ padding: 0px
 max_width: 100%
 ```
 
-| Option          | Type   | Default | Allowed values / range                     |
-|-----------------|--------|---------|-------------------------------------------|
-| `background`    | string | theme   | CSS kleur / gradient                      |
-| `border_radius` | string | `12px`  | e.g. `0`, `12px`, `1rem`                  |
-| `border`        | string | theme   | CSS border string                         |
-| `box_shadow`    | string | `none`  | CSS box-shadow                            |
-| `padding`       | string | `0px`   | CSS padding                               |
-| `max_width`     | string | `100%`  | e.g. `100%`, `520px`                      |
+| Option          | Type   | Default | Allowed values / range               |
+|-----------------|--------|---------|-------------------------------------|
+| `background`    | string | theme   | CSS color / gradient                |
+| `border_radius` | string | `12px`  | e.g. `0`, `12px`, `1rem`            |
+| `border`        | string | theme   | Any CSS border string               |
+| `box_shadow`    | string | `none`  | Any CSS box-shadow                  |
+| `padding`       | string | `0px`   | Any CSS padding                     |
+| `max_width`     | string | `100%`  | e.g. `100%`, `520px`                |
 
-In **sections** kun je eventueel ook nog `layout_options` gebruiken:
+When using **sections**, you can also use `layout_options`:
 
 ```yaml
 layout_options:
-  grid_rows: auto        # meestal op auto laten
-  grid_columns: 4        # aantal kolommen in de sectie
+  grid_rows: auto        # usually keep this on auto
+  grid_columns: 4        # number of columns for the card in the section
 ```
 
 ---
 
 ## Theme integration
 
-De kaart gebruikt Home Assistant theme-variabelen:
+The card uses Home Assistant theme variables:
 
-- `var(--ha-card-background, var(--card-background-color))` → kaartbackground  
-- `var(--primary-text-color)` → tekstkleur  
-- `var(--divider-color)` → standaard trackkleur  
+- `var(--ha-card-background, var(--card-background-color))` → card background  
+- `var(--primary-text-color)` → text color  
+- `var(--divider-color)` → default track color  
 
-Zonder extra styling werkt de kaart in zowel licht als donker thema.
+So it works out of the box with both light and dark themes.
 
 ---
 
 ## Using in sections (grid layout)
 
-Aanbevolen voorbeeld in een sectie:
+Recommended example in a section:
 
 ```yaml
 type: custom:donut-chart
@@ -336,8 +352,8 @@ layout_options:
   grid_columns: 4
 ```
 
-- Laat `grid_rows` op `auto`  
-- Tuning doe je met `ring_radius`, `legend_font_scale`, `legend_offset_y`, enz.
+- Keep `grid_rows` on `auto`.  
+- Adjust the visual size with `ring_radius`, `legend_font_scale`, `legend_offset_y`, etc.
 
 ---
 
