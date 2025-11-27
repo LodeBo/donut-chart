@@ -1,5 +1,5 @@
 /*!
- * 🟢 Donut Chart v2.1.2
+ * 🟢 Donut Chart v2.2.0
  * Multi-segment donut (pizza/taart) voor Home Assistant
  * - Meerdere entiteiten als segmenten
  * - Centertekst: totaal of aparte entiteit
@@ -9,13 +9,13 @@
  * - Labels per segment
  * - Rechte gleuven tussen segmenten
  * - UI-editor (ha-form)
- * - SVG-hoogte schaalt mee met ring_radius
+ * - SVG-hoogte schaalt mee met ring_radius (sterker effect)
  * - Legenda schaalt mee (font + afstand tot donut)
  */
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "2.1.2";
+  const VERSION = "2.2.0";
 
   // ---------- UI EDITOR ----------
 
@@ -353,12 +353,12 @@
       const R = Number(c.ring_radius || 65);
       const W = Number(c.ring_width || 8);
 
-      // Dynamische viewBox-hoogte op basis van radius
+      // Dynamische viewBox-hoogte op basis van radius (sterker effect)
       const baseR = 65;
       const baseH = 260;
-      const extra = baseH - 2 * baseR; // 260 - 130 = 130
-      let vbH = 2 * R + extra;
-      if (vbH < 180) vbH = 180;
+      const scaleR = R / baseR; // 1 bij R=65
+      let vbH = baseH * (0.3 + 0.7 * scaleR); // kleine R → veel kleiner
+      if (vbH < 160) vbH = 160;
       if (vbH > 260) vbH = 260;
 
       const cx = 130;
@@ -558,9 +558,9 @@
       const legendFontScale = Number.isFinite(Number(c.legend_font_scale))
         ? Number(c.legend_font_scale)
         : 0.22; // default
-      const legendFontSize = R * legendFontScale;        // px
-      const chartGap = Math.max(2, R * 0.05);            // afstand donut → legenda
-      const legendGap = Math.max(2, R * 0.04);           // afstand tussen regels
+      const legendFontSize = Math.max(8, R * legendFontScale); // px
+      const chartGap = Math.max(0, (R - 40) * 0.4);            // afstand donut → legenda
+      const legendGap = Math.max(2, legendFontSize * 0.3);     // afstand tussen regels
 
       let legendHtml = "";
       const showLegend = c.show_legend !== false;
@@ -623,7 +623,7 @@
             max-width:${c.max_width || "100%"};
             margin:0 auto;
             box-sizing:border-box;
-            padding:8px 10px 10px 10px;
+            padding:4px 10px 6px 10px;
           }
           .chart-container {
             width:100%;
