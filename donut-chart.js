@@ -1,5 +1,5 @@
 /*!
- * 🟢 Donut Chart v2.4.0
+ * 🟢 Donut Chart v2.4.1
  * Multi-segment donut (pizza/taart) voor Home Assistant
  * - Meerdere entiteiten als segmenten
  * - Centertekst: totaal of aparte entiteit
@@ -16,7 +16,14 @@
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "2.4.0";
+  const VERSION = "2.4.1";
+
+  // ---------- helpers ----------
+
+  function clamp(v, min, max) {
+    if (!Number.isFinite(v)) return min;
+    return Math.max(min, Math.min(max, v));
+  }
 
   // ---------- UI EDITOR ----------
 
@@ -46,13 +53,13 @@
         },
         {
           name: "top_label_font_scale",
-          label: "Top label grootte (relatief)",
-          selector: { number: {} },
+          label: "Top label grootte (relatief, 0.1–1)",
+          selector: { number: { min: 0.1, max: 1, step: 0.05, mode: "box" } },
         },
         {
           name: "top_label_offset_y",
-          label: "Top label offset Y",
-          selector: { number: {} },
+          label: "Top label offset Y (-100 tot 100)",
+          selector: { number: { min: -100, max: 100, step: 1, mode: "box" } },
         },
         {
           name: "center_mode",
@@ -79,13 +86,13 @@
         },
         {
           name: "center_decimals",
-          label: "Decimalen center / waarden",
-          selector: { number: {} },
+          label: "Decimalen center / totaal",
+          selector: { number: { min: 0, max: 6, step: 1, mode: "box" } },
         },
         {
           name: "center_font_scale",
-          label: "Grootte centertekst (relatief)",
-          selector: { number: {} },
+          label: "Grootte centertekst (relatief, 0.1–1)",
+          selector: { number: { min: 0.1, max: 1, step: 0.05, mode: "box" } },
         },
         {
           name: "segment_label_mode",
@@ -104,7 +111,7 @@
         {
           name: "segment_label_decimals",
           label: "Decimalen segment-labels",
-          selector: { number: {} },
+          selector: { number: { min: 0, max: 6, step: 1, mode: "box" } },
         },
         {
           name: "show_legend",
@@ -127,42 +134,42 @@
         {
           name: "legend_value_decimals",
           label: "Decimalen waarde in legenda",
-          selector: { number: {} },
+          selector: { number: { min: 0, max: 6, step: 1, mode: "box" } },
         },
         {
           name: "legend_percent_decimals",
-          label: "Decimalen percentage in legenda",
-          selector: { number: {} },
+          label: "Decimalen % in legenda",
+          selector: { number: { min: 0, max: 6, step: 1, mode: "box" } },
         },
         {
           name: "legend_font_scale",
-          label: "Legenda tekstgrootte (relatief t.o.v. radius)",
-          selector: { number: {} },
+          label: "Legenda tekstgrootte (relatief, 0.05–0.4)",
+          selector: { number: { min: 0.05, max: 0.4, step: 0.01, mode: "box" } },
         },
         {
           name: "legend_offset_y",
-          label: "Afstand tussen donut en legenda (mag negatief)",
-          selector: { number: {} },
+          label: "Afstand donut ↔ legenda (-80–80)",
+          selector: { number: { min: -80, max: 80, step: 1, mode: "box" } },
         },
         {
           name: "ring_radius",
-          label: "Ring radius",
-          selector: { number: {} },
+          label: "Ring radius (30–120)",
+          selector: { number: { min: 30, max: 120, step: 1, mode: "box" } },
         },
         {
           name: "ring_width",
-          label: "Ring dikte",
-          selector: { number: {} },
+          label: "Ring dikte (4–40)",
+          selector: { number: { min: 4, max: 40, step: 1, mode: "box" } },
         },
         {
           name: "ring_offset_y",
-          label: "Ring offset Y",
-          selector: { number: {} },
+          label: "Ring offset Y (-60–60)",
+          selector: { number: { min: -60, max: 60, step: 1, mode: "box" } },
         },
         {
           name: "label_ring_gap",
-          label: "Afstand tussen ring en top label",
-          selector: { number: {} },
+          label: "Afstand tussen ring en top label (0–60)",
+          selector: { number: { min: 0, max: 60, step: 1, mode: "box" } },
         },
       ];
     }
@@ -301,10 +308,6 @@
       this._render();
     }
 
-    _clamp(v, a, b) {
-      return Math.max(a, Math.min(b, v));
-    }
-
     _toRad(d) {
       return (d * Math.PI) / 180;
     }
@@ -388,7 +391,7 @@
       if (total > 0 && segs.length) {
         let angleCursor = -90;
         for (const s of segs) {
-          const frac = this._clamp(s.value / total, 0, 1);
+          const frac = Math.max(0, Math.min(1, s.value / total || 0));
           const span = frac * 360;
           if (span <= 0) {
             s._startAngle = s._endAngle = angleCursor;
@@ -405,17 +408,15 @@
 
       // Top label
       if ((c.top_label_text ?? "").trim() !== "") {
-        const tfs = Number.isFinite(Number(c.top_label_font_scale))
-          ? Number(c.top_label_font_scale)
-          : 0.35;
+        const rawTfs = Number(c.top_label_font_scale);
+        const tfs = clamp(rawTfs, 0.1, 1.0) || 0.35;
         const fsTop = R * tfs;
 
         const baseYTop =
           (cy - R) - (W * 0.8) - fsTop * 0.25 - Number(c.label_ring_gap || 0);
 
-        const yOffset = Number.isFinite(Number(c.top_label_offset_y))
-          ? Number(c.top_label_offset_y)
-          : 0;
+        const rawYOffset = Number(c.top_label_offset_y);
+        const yOffset = Number.isFinite(rawYOffset) ? rawYOffset : 0;
 
         const yTop = baseYTop + yOffset;
 
@@ -432,23 +433,22 @@
       // Center tekst
       const centerMode = c.center_mode || "total";
       const textColor = c.text_color_inside || "var(--primary-text-color)";
-      const cfs = Number.isFinite(Number(c.center_font_scale))
-        ? Number(c.center_font_scale)
-        : 0.4;
+      const rawCfs = Number(c.center_font_scale);
+      const cfs = clamp(rawCfs, 0.1, 1.0) || 0.4;
       const fsCenter = R * cfs;
       let centerText = "";
 
       if (centerMode === "total") {
-        const decimals = Number.isFinite(Number(c.center_decimals))
-          ? Number(c.center_decimals)
-          : 0;
+        const dRaw = Number(c.center_decimals);
+        const decimals = Number.isFinite(dRaw) ? dRaw : 0;
         centerText = `${total.toFixed(decimals)} ${c.center_unit || ""}`.trim();
       } else if (centerMode === "entity" && c.center_entity) {
         const st = h.states?.[c.center_entity];
         if (st) {
           const raw = String(st.state ?? "0").replace(",", ".");
           const v = Number(raw);
-          const d = Number(c.center_decimals ?? 0);
+          const dRaw = Number(c.center_decimals);
+          const d = Number.isFinite(dRaw) ? dRaw : 0;
           const unit = c.center_unit || st.attributes.unit_of_measurement || "";
           centerText = `${isFinite(v) ? v.toFixed(d) : st.state} ${unit}`.trim();
         }
@@ -467,19 +467,14 @@
       // Labels op segmenten
       const labelMode = c.segment_label_mode || "none";
       if (labelMode !== "none" && total > 0 && segs.length) {
-        const dec = Number.isFinite(Number(c.segment_label_decimals))
-          ? Number(c.segment_label_decimals)
-          : 1;
-        const minAngle = Number.isFinite(Number(c.segment_label_min_angle))
-          ? Number(c.segment_label_min_angle)
-          : 12;
-        const offset =
-          Number.isFinite(Number(c.segment_label_offset))
-            ? Number(c.segment_label_offset)
-            : 4;
-        const segFontScale = Number.isFinite(Number(c.segment_font_scale))
-          ? Number(c.segment_font_scale)
-          : 0.18;
+        const decRaw = Number(c.segment_label_decimals);
+        const dec = Number.isFinite(decRaw) ? decRaw : 1;
+        const minAngleRaw = Number(c.segment_label_min_angle);
+        const minAngle = Number.isFinite(minAngleRaw) ? minAngleRaw : 12;
+        const offsetRaw = Number(c.segment_label_offset);
+        const offset = Number.isFinite(offsetRaw) ? offsetRaw : 4;
+        const segFsRaw = Number(c.segment_font_scale);
+        const segFontScale = clamp(segFsRaw, 0.05, 0.4) || 0.18;
 
         const rLabel = R + offset;
 
@@ -516,7 +511,7 @@
         }
       }
 
-      // Gaps tussen segmenten (breedte/kleur via YAML, niet in UI)
+      // Gaps tussen segmenten
       const gapWidth = Number(c.segment_gap_width ?? 0);
       if (gapWidth > 0 && segs.length > 1) {
         let gapColor = c.segment_gap_color;
@@ -549,14 +544,12 @@
       svg += `</svg>`;
 
       // ----- LEGENDA: schaal + afstand tot donut -----
-      const legendFontScale = Number.isFinite(Number(c.legend_font_scale))
-        ? Number(c.legend_font_scale)
-        : 0.22;
+      const lfRaw = Number(c.legend_font_scale);
+      const legendFontScale = clamp(lfRaw, 0.05, 0.4) || 0.22;
       const legendFontSize = Math.max(8, R * legendFontScale);
 
-      const userLegendOffset = Number.isFinite(Number(c.legend_offset_y))
-        ? Number(c.legend_offset_y)
-        : 0;
+      const loRaw = Number(c.legend_offset_y);
+      let userLegendOffset = Number.isFinite(loRaw) ? loRaw : 0;
 
       let chartGap = (R - 40) * 0.4 + userLegendOffset;
       if (chartGap < -80) chartGap = -80;
@@ -569,12 +562,10 @@
       const legendMode = c.legend_value_mode || "both";
 
       if (showLegend && total > 0 && segs.length) {
-        const valDec = Number.isFinite(Number(c.legend_value_decimals))
-          ? Number(c.legend_value_decimals)
-          : 1;
-        const pctDec = Number.isFinite(Number(c.legend_percent_decimals))
-          ? Number(c.legend_percent_decimals)
-          : 1;
+        const valDecRaw = Number(c.legend_value_decimals);
+        const valDec = Number.isFinite(valDecRaw) ? valDecRaw : 1;
+        const pctDecRaw = Number(c.legend_percent_decimals);
+        const pctDec = Number.isFinite(pctDecRaw) ? pctDecRaw : 1;
 
         legendHtml = `
           <div class="legend" style="font-size:${legendFontSize}px; gap:${legendGap}px;">
