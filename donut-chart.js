@@ -1,5 +1,5 @@
 /*!
- * 🟢 Donut Chart v2.3.0
+ * 🟢 Donut Chart v2.3.1
  * Multi-segment donut (pizza/taart) voor Home Assistant
  * - Meerdere entiteiten als segmenten
  * - Centertekst: totaal of aparte entiteit
@@ -11,12 +11,12 @@
  * - UI-editor (ha-form)
  * - SVG-hoogte schaalt mee met ring_radius
  * - Legenda schaalt mee (font + afstand tot donut)
- * - ✅ Nieuwe optie: legend_offset_y (afstand donut ↔ legenda instelbaar)
+ * - legend_offset_y: afstand donut ↔ legenda (mag nu ook NEGATIEF)
  */
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "2.3.0";
+  const VERSION = "2.3.1";
 
   // ---------- UI EDITOR ----------
 
@@ -146,8 +146,8 @@
         },
         {
           name: "legend_offset_y",
-          label: "Afstand tussen donut en legenda (offset)",
-          selector: { number: { min: -50, max: 50, step: 1 } },
+          label: "Afstand tussen donut en legenda (offset, mag negatief)",
+          selector: { number: { min: -80, max: 80, step: 1 } },
         },
         {
           name: "ring_radius",
@@ -282,8 +282,8 @@
         show_legend: true,
         legend_value_mode: "both",
         legend_percent_decimals: 1,
-        legend_font_scale: 0.22,   // relatief t.o.v. radius
-        legend_offset_y: 0,        // extra offset tussen donut en legenda
+        legend_font_scale: 0.22,
+        legend_offset_y: 0,
 
         segment_label_mode: "value",
         segment_label_decimals: 1,
@@ -360,11 +360,11 @@
       const R = Number(c.ring_radius || 65);
       const W = Number(c.ring_width || 8);
 
-      // Dynamische viewBox-hoogte op basis van radius (sterker effect)
+      // Dynamische viewBox-hoogte op basis van radius
       const baseR = 65;
       const baseH = 260;
-      const scaleR = R / baseR; // 1 bij R=65
-      let vbH = baseH * (0.3 + 0.7 * scaleR); // kleine R → veel kleiner
+      const scaleR = R / baseR;
+      let vbH = baseH * (0.3 + 0.7 * scaleR);
       if (vbH < 160) vbH = 160;
       if (vbH > 260) vbH = 260;
 
@@ -549,7 +549,7 @@
           const x0 = cx + rInner * Math.cos(rad);
           const y0 = cy + rInner * Math.sin(rad);
           const x1 = cx + rOuter * Math.cos(rad);
-          const y1 = cy + rOuter * Math.sin(rad);
+          const y1 = cy + R * Math.sin(rad);
 
           svg += `
             <line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}"
@@ -564,18 +564,20 @@
       // ----- LEGENDA: schaal + afstand tot donut -----
       const legendFontScale = Number.isFinite(Number(c.legend_font_scale))
         ? Number(c.legend_font_scale)
-        : 0.22; // default
-      const legendFontSize = Math.max(8, R * legendFontScale); // px
+        : 0.22;
+      const legendFontSize = Math.max(8, R * legendFontScale);
 
       const userLegendOffset = Number.isFinite(Number(c.legend_offset_y))
         ? Number(c.legend_offset_y)
         : 0;
 
-      // basisafstand = functie van radius, plus user offset
+      // basisafstand afhankelijk van radius + user offset
       let chartGap = (R - 40) * 0.4 + userLegendOffset;
-      if (chartGap < 0) chartGap = 0; // nooit negatief (geen overlap)
+      // beetje limiet zodat het niet compleet ontspoort
+      if (chartGap < -80) chartGap = -80;
+      if (chartGap > 80) chartGap = 80;
 
-      const legendGap = Math.max(2, legendFontSize * 0.3); // afstand tussen regels
+      const legendGap = Math.max(2, legendFontSize * 0.3);
 
       let legendHtml = "";
       const showLegend = c.show_legend !== false;
