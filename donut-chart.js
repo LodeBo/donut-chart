@@ -1,5 +1,5 @@
 /*!
- * 🟢 Donut Chart v2.2.0
+ * 🟢 Donut Chart v2.3.0
  * Multi-segment donut (pizza/taart) voor Home Assistant
  * - Meerdere entiteiten als segmenten
  * - Centertekst: totaal of aparte entiteit
@@ -9,13 +9,14 @@
  * - Labels per segment
  * - Rechte gleuven tussen segmenten
  * - UI-editor (ha-form)
- * - SVG-hoogte schaalt mee met ring_radius (sterker effect)
+ * - SVG-hoogte schaalt mee met ring_radius
  * - Legenda schaalt mee (font + afstand tot donut)
+ * - ✅ Nieuwe optie: legend_offset_y (afstand donut ↔ legenda instelbaar)
  */
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "2.2.0";
+  const VERSION = "2.3.0";
 
   // ---------- UI EDITOR ----------
 
@@ -142,6 +143,11 @@
           name: "legend_font_scale",
           label: "Legenda tekstgrootte (relatief t.o.v. radius)",
           selector: { number: { min: 0.05, max: 0.4, step: 0.01 } },
+        },
+        {
+          name: "legend_offset_y",
+          label: "Afstand tussen donut en legenda (offset)",
+          selector: { number: { min: -50, max: 50, step: 1 } },
         },
         {
           name: "ring_radius",
@@ -277,6 +283,7 @@
         legend_value_mode: "both",
         legend_percent_decimals: 1,
         legend_font_scale: 0.22,   // relatief t.o.v. radius
+        legend_offset_y: 0,        // extra offset tussen donut en legenda
 
         segment_label_mode: "value",
         segment_label_decimals: 1,
@@ -559,8 +566,16 @@
         ? Number(c.legend_font_scale)
         : 0.22; // default
       const legendFontSize = Math.max(8, R * legendFontScale); // px
-      const chartGap = Math.max(0, (R - 40) * 0.4);            // afstand donut → legenda
-      const legendGap = Math.max(2, legendFontSize * 0.3);     // afstand tussen regels
+
+      const userLegendOffset = Number.isFinite(Number(c.legend_offset_y))
+        ? Number(c.legend_offset_y)
+        : 0;
+
+      // basisafstand = functie van radius, plus user offset
+      let chartGap = (R - 40) * 0.4 + userLegendOffset;
+      if (chartGap < 0) chartGap = 0; // nooit negatief (geen overlap)
+
+      const legendGap = Math.max(2, legendFontSize * 0.3); // afstand tussen regels
 
       let legendHtml = "";
       const showLegend = c.show_legend !== false;
