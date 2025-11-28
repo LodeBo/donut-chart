@@ -85,7 +85,7 @@ You can install this card **manually** or via **HACS**.
 1. In Home Assistant, open **HACS → Frontend → (⋮) → Custom repositories**.
 2. Add:
 
-   - **Repository**: `https://github.com/<your-username>/<your-repo>`
+   - **Repository**: `https://github.com/LodeBo/<your-repo>`
    - **Category**: `Lovelace`
 
 3. After adding, the card will appear in **HACS → Frontend**.  
