@@ -1,5 +1,5 @@
 /*!
- * 🟢 Donut Chart v2.4.5
+ * 🟢 Donut Chart v1.0.0
  * Multi-segment donut (pie chart) for Home Assistant
  * - Multiple entities as segments
  * - Each segment: own color + value in the ring
@@ -11,9 +11,9 @@
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "2.4.5";
+  const VERSION = "1.0.0";
 
-  // Small helpers to get LitElement / html / css for the editor
+  // Helpers to get LitElement / html / css for the editor
   const LitBase =
     window.LitElement ||
     Object.getPrototypeOf(customElements.get("ha-panel-lovelace"));
@@ -109,7 +109,7 @@
     }
 
     getCardSize() {
-      // Rough estimate: 3 rows (HA uses this for masonry layout)
+      // Rough estimate: 3 rows
       return 3;
     }
 
@@ -228,7 +228,7 @@
           `;
         }
 
-        // Draw gap arcs on top (same width, gapColor) - BETWEEN segments
+        // Draw gap arcs BETWEEN segments
         if (gapAngle > 0) {
           let boundaryAngle = -90;
           for (const s of segs) {
@@ -513,15 +513,11 @@
         },
         {
           name: "center_decimals",
-          selector: {
-            number: { min: 0, max: 6, step: 1, mode: "box" },
-          },
+          selector: { number: { mode: "box" } },
         },
         {
           name: "center_font_scale",
-          selector: {
-            number: { min: 0.1, max: 1.0, step: 0.05, mode: "box" },
-          },
+          selector: { number: { mode: "box" } },
         },
 
         // Top label
@@ -531,35 +527,25 @@
         },
         {
           name: "top_label_font_scale",
-          selector: {
-            number: { min: 0.1, max: 1.0, step: 0.05, mode: "box" },
-          },
+          selector: { number: { mode: "box" } },
         },
         {
           name: "top_label_offset_y",
-          selector: {
-            number: { min: -100, max: 100, step: 1, mode: "box" },
-          },
+          selector: { number: { mode: "box" } },
         },
 
         // Ring
         {
           name: "ring_radius",
-          selector: {
-            number: { min: 30, max: 120, step: 1, mode: "box" },
-          },
+          selector: { number: { mode: "box" } },
         },
         {
           name: "ring_width",
-          selector: {
-            number: { min: 4, max: 40, step: 1, mode: "box" },
-          },
+          selector: { number: { mode: "box" } },
         },
         {
           name: "ring_offset_y",
-          selector: {
-            number: { min: -60, max: 60, step: 1, mode: "box" },
-          },
+          selector: { number: { mode: "box" } },
         },
 
         // Segment labels
@@ -578,27 +564,19 @@
         },
         {
           name: "segment_label_decimals",
-          selector: {
-            number: { min: 0, max: 6, step: 1, mode: "box" },
-          },
+          selector: { number: { mode: "box" } },
         },
         {
           name: "segment_label_min_angle",
-          selector: {
-            number: { min: 0, max: 360, step: 1, mode: "box" },
-          },
+          selector: { number: { mode: "box" } },
         },
         {
           name: "segment_label_offset",
-          selector: {
-            number: { min: 0, max: 40, step: 1, mode: "box" },
-          },
+          selector: { number: { mode: "box" } },
         },
         {
           name: "segment_font_scale",
-          selector: {
-            number: { min: 0.05, max: 0.4, step: 0.01, mode: "box" },
-          },
+          selector: { number: { mode: "box" } },
         },
 
         // Legend
@@ -620,27 +598,19 @@
         },
         {
           name: "legend_value_decimals",
-          selector: {
-            number: { min: 0, max: 6, step: 1, mode: "box" },
-          },
+          selector: { number: { mode: "box" } },
         },
         {
           name: "legend_percent_decimals",
-          selector: {
-            number: { min: 0, max: 6, step: 1, mode: "box" },
-          },
+          selector: { number: { mode: "box" } },
         },
         {
           name: "legend_font_scale",
-          selector: {
-            number: { min: 0.05, max: 0.4, step: 0.01, mode: "box" },
-          },
+          selector: { number: { mode: "box" } },
         },
         {
           name: "legend_offset_y",
-          selector: {
-            number: { min: -80, max: 80, step: 1, mode: "box" },
-          },
+          selector: { number: { mode: "box" } },
         },
       ];
 
