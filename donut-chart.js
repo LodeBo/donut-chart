@@ -1,5 +1,5 @@
 /*!
- * 🟢 Donut Chart v4.0.0
+ * 🟢 Donut Chart v1.0.0
  * Multi-segment donut (pie chart) for Home Assistant
  * - Multiple entities as segments
  * - Each segment: own color + value in the ring
@@ -11,7 +11,7 @@
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "4.0.0";
+  const VERSION = "1.0.0";
 
   // Helpers to get LitElement / html / css for the editor
   const LitBase =
@@ -64,6 +64,7 @@
         segment_label_min_angle: 12,
         segment_label_offset: 4,
         segment_font_scale: 0.18,
+        segment_label_unit: "", // "" = use center_unit
 
         // Legend
         show_legend: true,
@@ -298,6 +299,9 @@
         const offset = Number(c.segment_label_offset || 4);
         const minAngle =
           Number(c.segment_label_min_angle || 12) || 0;
+        const unitForSeg =
+          (c.segment_label_unit || "").trim() ||
+          (c.center_unit || "").trim();
         let angleCursor = -90;
 
         for (const s of segs) {
@@ -316,9 +320,11 @@
           const lx = cx + (rad + offset) * Math.cos(this._toRad(mid));
           const ly = cy + (rad + offset) * Math.sin(this._toRad(mid));
 
-          const valueStr = s.value.toFixed(
+          const rawVal = s.value.toFixed(
             c.segment_label_decimals ?? 0
           );
+          const valueStr =
+            unitForSeg ? `${rawVal} ${unitForSeg}` : rawVal;
           const percentStr = ((s.value / total) * 100).toFixed(
             c.segment_label_decimals ?? 0
           );
@@ -513,11 +519,15 @@
         },
         {
           name: "center_decimals",
-          selector: { number: { mode: "box" } },
+          selector: {
+            number: { min: 0, max: 6, step: 1, mode: "box" },
+          },
         },
         {
           name: "center_font_scale",
-          selector: { number: { mode: "box" } },
+          selector: {
+            number: { min: 0.1, max: 1.0, step: 0.05, mode: "box" },
+          },
         },
 
         // Top label
@@ -527,25 +537,35 @@
         },
         {
           name: "top_label_font_scale",
-          selector: { number: { mode: "box" } },
+          selector: {
+            number: { min: 0.1, max: 1.0, step: 0.05, mode: "box" },
+          },
         },
         {
           name: "top_label_offset_y",
-          selector: { number: { mode: "box" } },
+          selector: {
+            number: { min: -100, max: 100, step: 1, mode: "box" },
+          },
         },
 
         // Ring
         {
           name: "ring_radius",
-          selector: { number: { mode: "box" } },
+          selector: {
+            number: { min: 30, max: 120, step: 1, mode: "box" },
+          },
         },
         {
           name: "ring_width",
-          selector: { number: { mode: "box" } },
+          selector: {
+            number: { min: 4, max: 40, step: 1, mode: "box" },
+          },
         },
         {
           name: "ring_offset_y",
-          selector: { number: { mode: "box" } },
+          selector: {
+            number: { min: -60, max: 60, step: 1, mode: "box" },
+          },
         },
 
         // Segment labels
@@ -563,20 +583,32 @@
           },
         },
         {
+          name: "segment_label_unit",
+          selector: { text: {} },
+        },
+        {
           name: "segment_label_decimals",
-          selector: { number: { mode: "box" } },
+          selector: {
+            number: { min: 0, max: 6, step: 1, mode: "box" },
+          },
         },
         {
           name: "segment_label_min_angle",
-          selector: { number: { mode: "box" } },
+          selector: {
+            number: { min: 0, max: 360, step: 1, mode: "box" },
+          },
         },
         {
           name: "segment_label_offset",
-          selector: { number: { mode: "box" } },
+          selector: {
+            number: { min: 0, max: 40, step: 1, mode: "box" },
+          },
         },
         {
           name: "segment_font_scale",
-          selector: { number: { mode: "box" } },
+          selector: {
+            number: { min: 0.05, max: 0.4, step: 0.01, mode: "box" },
+          },
         },
 
         // Legend
@@ -598,19 +630,27 @@
         },
         {
           name: "legend_value_decimals",
-          selector: { number: { mode: "box" } },
+          selector: {
+            number: { min: 0, max: 6, step: 1, mode: "box" },
+          },
         },
         {
           name: "legend_percent_decimals",
-          selector: { number: { mode: "box" } },
+          selector: {
+            number: { min: 0, max: 6, step: 1, mode: "box" },
+          },
         },
         {
           name: "legend_font_scale",
-          selector: { number: { mode: "box" } },
+          selector: {
+            number: { min: 0.05, max: 0.4, step: 0.01, mode: "box" },
+          },
         },
         {
           name: "legend_offset_y",
-          selector: { number: { mode: "box" } },
+          selector: {
+            number: { min: -80, max: 80, step: 1, mode: "box" },
+          },
         },
       ];
 
@@ -656,6 +696,8 @@
 
         case "segment_label_mode":
           return "Segment labels: mode";
+        case "segment_label_unit":
+          return "Segment labels: unit (empty = center unit)";
         case "segment_label_decimals":
           return "Segment labels: decimals";
         case "segment_label_min_angle":
