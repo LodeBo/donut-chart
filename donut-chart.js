@@ -1,5 +1,5 @@
 /*!
- * 🟢 Donut Chart v1.0.0
+ * 🟢 Donut Chart v4.1.0
  * Multi-segment donut (pie chart) for Home Assistant
  * - Multiple entities as segments
  * - Each segment: own color + value in the ring
@@ -11,7 +11,7 @@
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "1.0.0";
+  const VERSION = "4.1.0";
 
   // Helpers to get LitElement / html / css for the editor
   const LitBase =
