@@ -1,9 +1,9 @@
 /*!
- * 🟢 Donut Chart v2.4.2
+ * 🟢 Donut Chart v1.0.0
  * Multi-segment donut (pie chart) for Home Assistant
  * - Multiple entities as segments
  * - Each segment: own color + value in the ring
- * - Center text: total or single entity
+ * - Center text: ALWAYS total of all segments
  * - Top label above the ring
  * - Legend with value / percent / both
  * - Theme-aware, works in sections
@@ -11,7 +11,7 @@
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "2.4.2";
+  const VERSION = "1.0.0";
 
   // Small helpers to get LitElement / html / css for the editor
   const LitBase =
@@ -37,9 +37,7 @@
           { entity: "sensor.example_3", label: "Zone 3", color: "#3b82f6" },
         ],
 
-        // Center text
-        center_mode: "total", // "total" | "entity" | "none"
-        center_entity: "",
+        // Center text (ALWAYS total of all segments)
         center_unit: "kWh",
         center_decimals: 2,
         center_font_scale: 0.4, // 0.1–1.0
@@ -181,8 +179,6 @@
         gapAngle = (gapWidthPx / circumference) * 360;
       }
 
-      const ringCircumference = 2 * Math.PI * R;
-
       const arcPath = (radius, a0, a1) => {
         const x0 = cx + radius * Math.cos(this._toRad(a0));
         const y0 = cy + radius * Math.sin(this._toRad(a0));
@@ -232,17 +228,18 @@
           `;
         }
 
-        // Draw gap arcs on top (same width, gapColor)
+        // Draw gap arcs on top (same width, gapColor) - BETWEEN segments
         if (gapAngle > 0) {
-          angleCursor = -90;
+          let boundaryAngle = -90;
           for (const s of segs) {
             const frac = this._clamp(s.value / total, 0, 1);
             if (frac <= 0) continue;
             const fullSpan = frac * 360;
-            const start = angleCursor;
-            const midStart = start + fullSpan / 2 - gapAngle / 2;
-            const midEnd = midStart + gapAngle;
-            angleCursor += fullSpan;
+
+            boundaryAngle += fullSpan;
+
+            const midStart = boundaryAngle - gapAngle / 2;
+            const midEnd = boundaryAngle + gapAngle / 2;
 
             const dGap = arcPath(R - W / 2, midStart, midEnd);
             svg += `
@@ -277,30 +274,11 @@
         `;
       }
 
-      // Center text
-      const centerMode = c.center_mode || "total";
+      // Center text: ALWAYS total of segments
       const centerFs = R * (c.center_font_scale || 0.4);
-      let centerText = "";
-
-      if (centerMode === "total") {
-        centerText = `${total.toFixed(c.center_decimals ?? 0)} ${
-          c.center_unit || ""
-        }`.trim();
-      } else if (centerMode === "entity" && c.center_entity) {
-        const st = h.states?.[c.center_entity];
-        if (st) {
-          const raw = String(st.state ?? "0").replace(",", ".");
-          const v = Number(raw);
-          const d = Number(c.center_decimals ?? 0);
-          const unit =
-            c.center_unit ||
-            st.attributes.unit_of_measurement ||
-            "";
-          centerText = `${
-            isFinite(v) ? v.toFixed(d) : st.state
-          } ${unit}`.trim();
-        }
-      }
+      const centerText = `${total.toFixed(c.center_decimals ?? 0)} ${
+        c.center_unit || ""
+      }`.trim();
 
       if (centerText) {
         svg += `
@@ -530,23 +508,6 @@
       const schema = [
         // Center
         {
-          name: "center_mode",
-          selector: {
-            select: {
-              options: [
-                { value: "total", label: "Total of all segments" },
-                { value: "entity", label: "Single entity" },
-                { value: "none", label: "None" },
-              ],
-            },
-          },
-        },
-        {
-          name: "center_entity",
-          selector: { entity: {} },
-          required: false,
-        },
-        {
           name: "center_unit",
           selector: { text: {} },
         },
@@ -702,28 +663,27 @@
 
     _computeLabel(schema) {
       switch (schema.name) {
-        case "center_mode":
-          return "Center: mode";
-        case "center_entity":
-          return "Center: entity (for mode = entity)";
         case "center_unit":
-          return "Center: unit";
+          return "Center: unit (total of all segments)";
         case "center_decimals":
           return "Center: decimals";
         case "center_font_scale":
           return "Center: font scale";
+
         case "top_label_text":
           return "Top label: text";
         case "top_label_font_scale":
           return "Top label: font scale";
         case "top_label_offset_y":
           return "Top label: vertical offset";
+
         case "ring_radius":
           return "Ring radius";
         case "ring_width":
           return "Ring width";
         case "ring_offset_y":
           return "Ring vertical offset";
+
         case "segment_label_mode":
           return "Segment labels: mode";
         case "segment_label_decimals":
@@ -734,6 +694,7 @@
           return "Segment labels: distance from ring";
         case "segment_font_scale":
           return "Segment labels: font scale";
+
         case "show_legend":
           return "Show legend";
         case "legend_value_mode":
