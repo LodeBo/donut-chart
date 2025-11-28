@@ -79,14 +79,11 @@ You can install this card **manually** or via **HACS**.
 
 ### Option B – HACS (Custom repository)
 
-> Replace `<your-username>/<your-repo>` with the actual GitHub repo for this card  
-> (for example: `LodeBo/donut-chart`).
-
 1. In Home Assistant, open **HACS → Frontend → (⋮) → Custom repositories**.
 2. Add:
 
-   - **Repository**: `https://github.com/LodeBo/<your-repo>`
-   - **Category**: `Lovelace`
+   - **Repository**: `https://github.com/LodeBo/donut-chart`
+   - **Category**: `Dashboard`
 
 3. After adding, the card will appear in **HACS → Frontend**.  
    Click **Download** / **Install** to install `donut-chart.js`.
