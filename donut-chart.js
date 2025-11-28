@@ -1,5 +1,5 @@
 /*!
- * 🟢 Donut Chart v1.0.0
+ * 🟢 Donut Chart v5.0
  * Multi-segment donut (pie chart) for Home Assistant
  * - Multiple entities as segments
  * - Each segment: own color + value in the ring
@@ -11,9 +11,8 @@
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "1.0.0";
+  const VERSION = "5.0";
 
-  // Helpers to get LitElement / html / css for the editor
   const LitBase =
     window.LitElement ||
     Object.getPrototypeOf(customElements.get("ha-panel-lovelace"));
@@ -30,17 +29,16 @@
 
     static getStubConfig() {
       return {
-        // Segments (YAML only)
         segments: [
           { entity: "sensor.example_1", label: "Zone 1", color: "#f97316" },
           { entity: "sensor.example_2", label: "Zone 2", color: "#22c55e" },
           { entity: "sensor.example_3", label: "Zone 3", color: "#3b82f6" },
         ],
 
-        // Center text (ALWAYS total of all segments)
+        // Center (always total)
         center_unit: "kWh",
         center_decimals: 2,
-        center_font_scale: 0.4, // 0.1–1.0
+        center_font_scale: 0.4,
 
         // Top label
         top_label_text: "Donut",
@@ -50,7 +48,7 @@
         top_label_offset_y: 0,
         label_ring_gap: 17,
 
-        // Ring layout
+        // Ring
         ring_radius: 65,
         ring_width: 8,
         ring_offset_y: 0,
@@ -58,7 +56,7 @@
         track_opacity: 0.0,
         min_total: 0,
 
-        // Segment labels on the ring
+        // Segment labels
         segment_label_mode: "value", // "none" | "value" | "percent" | "both"
         segment_label_decimals: 1,
         segment_label_min_angle: 12,
@@ -68,15 +66,15 @@
 
         // Legend
         show_legend: true,
-        legend_value_mode: "both", // "value" | "percent" | "both"
+        legend_value_mode: "both",
         legend_value_decimals: 2,
         legend_percent_decimals: 1,
         legend_font_scale: 0.22,
         legend_offset_y: 0,
 
-        // Segment gaps
-        segment_gap_width: 3, // px along arc, 0 = none
-        segment_gap_color: "auto", // "auto" or color string
+        // Gaps
+        segment_gap_width: 3,
+        segment_gap_color: "auto",
 
         // Card style
         background:
@@ -110,11 +108,9 @@
     }
 
     getCardSize() {
-      // Rough estimate: 3 rows
       return 3;
     }
 
-    // Helpers
     _clamp(v, a, b) {
       return Math.max(a, Math.min(b, v));
     }
@@ -130,7 +126,8 @@
 
       const segDefs = Array.isArray(c.segments) ? c.segments : [];
       if (!segDefs.length) {
-        this.shadowRoot.innerHTML = `<ha-card><div style="padding:16px;">No segments configured.</div></ha-card>`;
+        this.shadowRoot.innerHTML =
+          `<ha-card><div style="padding:16px;">No segments configured.</div></ha-card>`;
         return;
       }
 
@@ -158,8 +155,7 @@
       const minTotal = Number(c.min_total ?? 0);
       if (total < minTotal) total = 0;
 
-      // Geometry
-      const R = Number(c.ring_radius || 65); // outer radius
+      const R = Number(c.ring_radius || 65);
       const W = Number(c.ring_width || 8);
       const innerR = R - W;
       const cx = 130;
@@ -173,7 +169,6 @@
             "var(--ha-card-background, var(--card-background-color))"
           : c.segment_gap_color;
 
-      // Convert gap width in px to degrees along arc
       let gapAngle = 0;
       if (gapWidthPx > 0) {
         const circumference = 2 * Math.PI * ((R + innerR) / 2);
@@ -193,7 +188,6 @@
         <svg viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg">
       `;
 
-      // Track ring
       if (trackOpacity > 0) {
         svg += `
           <circle cx="${cx}" cy="${cy}" r="${R - W / 2}" fill="none"
@@ -202,7 +196,6 @@
         `;
       }
 
-      // Draw segments
       if (total > 0 && segs.length) {
         let angleCursor = -90;
         for (const s of segs) {
@@ -229,7 +222,6 @@
           `;
         }
 
-        // Draw gap arcs BETWEEN segments
         if (gapAngle > 0) {
           let boundaryAngle = -90;
           for (const s of segs) {
@@ -254,7 +246,6 @@
         }
       }
 
-      // Top label
       const topText = (c.top_label_text ?? "").trim();
       if (topText) {
         const fsTop = R * (c.top_label_font_scale || 0.35);
@@ -275,7 +266,6 @@
         `;
       }
 
-      // Center text: ALWAYS total of segments
       const centerFs = R * (c.center_font_scale || 0.4);
       const centerText = `${total.toFixed(c.center_decimals ?? 0)} ${
         c.center_unit || ""
@@ -292,7 +282,6 @@
         `;
       }
 
-      // Segment labels on the ring
       const segLabelMode = c.segment_label_mode || "value";
       if (segLabelMode !== "none" && total > 0 && segs.length) {
         const fsSeg = R * (c.segment_font_scale || 0.18);
@@ -350,7 +339,6 @@
 
       svg += `</svg>`;
 
-      // Legend HTML
       let legendHtml = "";
       if (c.show_legend !== false && total > 0 && segs.length) {
         const fsLegend = R * (c.legend_font_scale || 0.22);
@@ -390,83 +378,83 @@
       const style = `
         <style>
           :host {
-            display: block;
-            width: 100%;
-            height: 100%;
+            display:block;
+            width:100%;
+            height:100%;
           }
           ha-card {
-            background: ${c.background};
-            border-radius: ${c.border_radius};
-            border: ${c.border};
-            box-shadow: ${c.box_shadow};
-            padding: ${c.padding};
-            display: flex;
-            align-items: stretch;
-            justify-content: center;
-            width: 100%;
-            height: 100%;
+            background:${c.background};
+            border-radius:${c.border_radius};
+            border:${c.border};
+            box-shadow:${c.box_shadow};
+            padding:${c.padding};
+            display:flex;
+            align-items:stretch;
+            justify-content:center;
+            width:100%;
+            height:100%;
           }
           .wrap {
-            width: 100%;
-            height: 100%;
-            max-width: ${c.max_width || "520px"};
-            margin: 0 auto;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
+            width:100%;
+            height:100%;
+            max-width:${c.max_width || "520px"};
+            margin:0 auto;
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            justify-content:flex-start;
           }
           .ring-container {
-            width: 100%;
-            flex: 1 1 auto;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            width:100%;
+            flex:1 1 auto;
+            display:flex;
+            align-items:center;
+            justify-content:center;
           }
           svg {
-            width: 100%;
-            height: auto;
-            display: block;
+            width:100%;
+            height:auto;
+            display:block;
           }
           text {
-            user-select: none;
+            user-select:none;
           }
           .legend {
-            width: 100%;
-            flex: 0 0 auto;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            padding: 8px 12px 12px 12px;
-            box-sizing: border-box;
+            width:100%;
+            flex:0 0 auto;
+            display:flex;
+            flex-direction:column;
+            gap:4px;
+            padding:8px 12px 12px 12px;
+            box-sizing:border-box;
           }
           .legend-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            white-space: nowrap;
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            white-space:nowrap;
           }
           .legend-left {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            min-width: 0;
+            display:inline-flex;
+            align-items:center;
+            gap:6px;
+            min-width:0;
           }
           .legend-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            flex-shrink: 0;
+            width:10px;
+            height:10px;
+            border-radius:50%;
+            flex-shrink:0;
           }
           .legend-label {
-            color: var(--primary-text-color);
-            overflow: hidden;
-            text-overflow: ellipsis;
+            color:var(--primary-text-color);
+            overflow:hidden;
+            text-overflow:ellipsis;
           }
           .legend-right {
-            color: var(--primary-text-color);
-            margin-left: 8px;
-            flex-shrink: 0;
+            color:var(--primary-text-color);
+            margin-left:8px;
+            flex-shrink:0;
           }
         </style>
       `;
@@ -484,8 +472,6 @@
       `;
     }
   }
-
-  // ----- Editor -----
 
   class DonutChartEditor extends LitBase {
     static get properties() {
@@ -508,65 +494,23 @@
 
     render() {
       if (!this.hass || !this._config) return html``;
-
       const data = this._config;
 
       const schema = [
         // Center
-        {
-          name: "center_unit",
-          selector: { text: {} },
-        },
-        {
-          name: "center_decimals",
-          selector: {
-            number: { min: 0, max: 6, step: 1, mode: "box" },
-          },
-        },
-        {
-          name: "center_font_scale",
-          selector: {
-            number: { min: 0.1, max: 1.0, step: 0.05, mode: "box" },
-          },
-        },
+        { name: "center_unit", selector: { text: {} } },
+        { name: "center_decimals", selector: { number: { mode: "box" } } },
+        { name: "center_font_scale", selector: { number: { mode: "box" } } },
 
         // Top label
-        {
-          name: "top_label_text",
-          selector: { text: {} },
-        },
-        {
-          name: "top_label_font_scale",
-          selector: {
-            number: { min: 0.1, max: 1.0, step: 0.05, mode: "box" },
-          },
-        },
-        {
-          name: "top_label_offset_y",
-          selector: {
-            number: { min: -100, max: 100, step: 1, mode: "box" },
-          },
-        },
+        { name: "top_label_text", selector: { text: {} } },
+        { name: "top_label_font_scale", selector: { number: { mode: "box" } } },
+        { name: "top_label_offset_y", selector: { number: { mode: "box" } } },
 
         // Ring
-        {
-          name: "ring_radius",
-          selector: {
-            number: { min: 30, max: 120, step: 1, mode: "box" },
-          },
-        },
-        {
-          name: "ring_width",
-          selector: {
-            number: { min: 4, max: 40, step: 1, mode: "box" },
-          },
-        },
-        {
-          name: "ring_offset_y",
-          selector: {
-            number: { min: -60, max: 60, step: 1, mode: "box" },
-          },
-        },
+        { name: "ring_radius", selector: { number: { mode: "box" } } },
+        { name: "ring_width", selector: { number: { mode: "box" } } },
+        { name: "ring_offset_y", selector: { number: { mode: "box" } } },
 
         // Segment labels
         {
@@ -582,40 +526,14 @@
             },
           },
         },
-        {
-          name: "segment_label_unit",
-          selector: { text: {} },
-        },
-        {
-          name: "segment_label_decimals",
-          selector: {
-            number: { min: 0, max: 6, step: 1, mode: "box" },
-          },
-        },
-        {
-          name: "segment_label_min_angle",
-          selector: {
-            number: { min: 0, max: 360, step: 1, mode: "box" },
-          },
-        },
-        {
-          name: "segment_label_offset",
-          selector: {
-            number: { min: 0, max: 40, step: 1, mode: "box" },
-          },
-        },
-        {
-          name: "segment_font_scale",
-          selector: {
-            number: { min: 0.05, max: 0.4, step: 0.01, mode: "box" },
-          },
-        },
+        { name: "segment_label_unit", selector: { text: {} } },
+        { name: "segment_label_decimals", selector: { number: { mode: "box" } } },
+        { name: "segment_label_min_angle", selector: { number: { mode: "box" } } },
+        { name: "segment_label_offset", selector: { number: { mode: "box" } } },
+        { name: "segment_font_scale", selector: { number: { mode: "box" } } },
 
         // Legend
-        {
-          name: "show_legend",
-          selector: { boolean: {} },
-        },
+        { name: "show_legend", selector: { boolean: {} } },
         {
           name: "legend_value_mode",
           selector: {
@@ -628,30 +546,13 @@
             },
           },
         },
-        {
-          name: "legend_value_decimals",
-          selector: {
-            number: { min: 0, max: 6, step: 1, mode: "box" },
-          },
-        },
+        { name: "legend_value_decimals", selector: { number: { mode: "box" } } },
         {
           name: "legend_percent_decimals",
-          selector: {
-            number: { min: 0, max: 6, step: 1, mode: "box" },
-          },
+          selector: { number: { mode: "box" } },
         },
-        {
-          name: "legend_font_scale",
-          selector: {
-            number: { min: 0.05, max: 0.4, step: 0.01, mode: "box" },
-          },
-        },
-        {
-          name: "legend_offset_y",
-          selector: {
-            number: { min: -80, max: 80, step: 1, mode: "box" },
-          },
-        },
+        { name: "legend_font_scale", selector: { number: { mode: "box" } } },
+        { name: "legend_offset_y", selector: { number: { mode: "box" } } },
       ];
 
       return html`
@@ -751,7 +652,6 @@
     if (!customElements.get(TAG)) {
       customElements.define(TAG, DonutChart);
       customElements.define("donut-chart-editor", DonutChartEditor);
-
       window.customCards = window.customCards || [];
       window.customCards.push({
         type: TAG,
@@ -760,16 +660,13 @@
           "Fast multi-segment donut / pie chart for Home Assistant.",
         preview: true,
       });
-
-      // eslint-disable-next-line no-console
       console.info(
         `%c🟢 ${TAG} %cv${VERSION} loaded`,
-        "color: #22c55e; font-weight: bold;",
-        "color: inherit;"
+        "color:#22c55e;font-weight:bold;",
+        "color:inherit;"
       );
     }
   } catch (e) {
-    // eslint-disable-next-line no-console
     console.error("❌ Error registering donut-chart:", e);
   }
 })();
