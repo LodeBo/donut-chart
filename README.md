@@ -22,11 +22,9 @@ A fast, theme-aware, multi-segment **donut / pie chart** for Home Assistant Love
 
 - 🎯 **Center display**
   - Show the **total** of all segments  
-  - Show a **specific entity**  
-  - Or show **nothing** in the center
 
 - 🏷️ **Top label**
-  - Text above the donut (e.g. _Solar Year 2025_)  
+  - Text above the donut 
   - Adjustable font scale and vertical offset
 
 - 🧾 **Legend**
@@ -39,15 +37,6 @@ A fast, theme-aware, multi-segment **donut / pie chart** for Home Assistant Love
   - Show **value**, **percentage**, or **both** on the ring itself  
   - Minimum angle threshold to avoid clutter  
   - Adjustable label offset & font scale
-
-- 🎨 **Theme-aware**
-  - Uses Home Assistant’s card background and primary text color  
-  - Gap color between segments can auto-match the card background
-
-- 📐 **Layout-friendly**
-  - Scales nicely inside **sections** and regular views  
-  - Works well in grids with multiple cards side-by-side
-
 ---
 
 ## Installation
@@ -159,8 +148,6 @@ States are parsed as numbers; **negative values are treated as 0**.
 ### Center text
 
 ```yaml
-center_mode: total     # "total" | "entity" | "none"
-center_entity: sensor.solar_roof   # only for center_mode: entity
 center_unit: kWh
 center_decimals: 2
 center_font_scale: 0.4   # 0.1–1.0
@@ -168,8 +155,6 @@ center_font_scale: 0.4   # 0.1–1.0
 
 | Option              | Type    | Default | Allowed values / range                        |
 |---------------------|---------|---------|----------------------------------------------|
-| `center_mode`       | string  | `total` | `total`, `entity`, `none`                    |
-| `center_entity`     | string  | `""`    | Any entity id (used only when mode=`entity`) |
 | `center_unit`       | string  | `""`    | Free text (e.g. `kWh`, `€`)                  |
 | `center_decimals`   | number  | `2`     | `0`–`6`                                      |
 | `center_font_scale` | number  | `0.4`   | `0.1`–`1.0` (relative to `ring_radius`)      |
