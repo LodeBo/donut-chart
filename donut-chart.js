@@ -596,69 +596,61 @@
       }
 
       const style = `
-        <style>
-          :host {
-            display:block;
-            width:100%;
-          }
-          ha-card {
-            background:${c.background};
-            border-radius:${c.border_radius};
-            border:${c.border};
-            box-shadow:${c.box_shadow};
-            padding:${c.padding};
-            width:100%;
-            box-sizing:border-box;
-            color: var(--primary-text-color);
-          }
-          .wrap {
-            width:100%;
-            max-width:${c.max_width || "100%"};
-            margin:0 auto;
-            box-sizing:border-box;
-            padding:4px 10px 6px 10px;
-          }
-          .chart-container {
-            width:100%;
-          }
-          svg {
-            width:100%;
-            height:auto;
-            display:block;
-          }
-          text {
-            user-select:none;
-          }
-          .legend {
-            width:100%;
-            display:flex;
-            flex-direction:column;
-          }
-          .legend-item {
-            display:flex;
-            align-items:center;
-            justify-content:space-between;
-            gap:8px;
-          }
-          .legend-color {
-            width:10px;
-            height:10px;
-            border-radius:50%;
-            flex-shrink:0;
-          }
-          .legend-label {
-            flex:1 1 auto;
-            overflow:hidden;
-            text-overflow:ellipsis;
-            white-space:nowrap;
-          }
-          .legend-value {
-            flex-shrink:0;
-            text-align:right;
-            font-variant-numeric:tabular-nums;
-          }
-        </style>
-      `;
+  <style>
+    :host {
+      display: block;
+      width: 100%;
+      /* geen height: 100%; → laat HA de hoogte bepalen */
+    }
+    ha-card {
+      background:${c.background};
+      border-radius:${c.border_radius};
+      border:${c.border};
+      box-shadow:${c.box_shadow};
+      padding:${c.padding};
+      display:flex;
+      align-items:stretch;
+      justify-content:center;
+      width:100%;
+      height:auto;       /* was 100% */
+    }
+    .wrap {
+      width:100%;
+      height:auto;       /* was 100% */
+      max-width:${c.max_width || "520px"};
+      margin:0 auto;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:flex-start;
+    }
+    .ring-container {
+      width:100%;
+      /* flex:1 1 auto;  weg → laat content de hoogte bepalen */
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    svg {
+      width:100%;
+      height:auto;
+      display:block;
+    }
+    text {
+      user-select:none;
+    }
+    .legend {
+      width:100%;
+      flex:0 0 auto;
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      padding:8px 12px 12px 12px;
+      box-sizing:border-box;
+    }
+    ...
+  </style>
+`;
 
       this.shadowRoot.innerHTML = `
         ${style}
