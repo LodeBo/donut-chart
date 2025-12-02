@@ -1,18 +1,18 @@
 /*!
- * 🟢 Donut Chart v2.4.3 (YAML only)
+ * 🟢 Donut Chart v2.5.0 (YAML only)
  * Multi-segment donut / pie chart for Home Assistant
  * - Multiple entities as segments
  * - Center text = ALWAYS total of all segments
  * - Top label above the ring
  * - Segment labels on ring (optional)
  * - Legend with value / percent / both
- * - Theme-aware, works in sections and grid
+ * - Theme-aware, works in sections, grid, layout-card
  * - NO visual editor: configure everything in YAML
  */
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "2.4.3";
+  const VERSION = "2.5.0";
 
   class DonutChart extends HTMLElement {
     constructor() {
@@ -97,10 +97,6 @@
     set hass(hass) {
       this._hass = hass;
       if (this._config) this._render();
-    }
-
-    getCardSize() {
-      return 3;
     }
 
     _clamp(v, a, b) {
@@ -389,29 +385,22 @@
             border:${c.border};
             box-shadow:${c.box_shadow};
             padding:${c.padding};
-            display:flex;
-            align-items:stretch;
-            justify-content:center;
             width:100%;
-            height:auto;
+            box-sizing:border-box;
+            display:block;
           }
 
           .wrap {
             width:100%;
-            height:auto;
             max-width:${c.max_width || "520px"};
             margin:0 auto;
-            display:flex;
-            flex-direction:column;
-            align-items:center;
-            justify-content:flex-start;
+            box-sizing:border-box;
+            display:block;
           }
 
           .ring-container {
             width:100%;
-            display:flex;
-            align-items:center;
-            justify-content:center;
+            display:block;
           }
 
           svg {
@@ -426,7 +415,6 @@
 
           .legend {
             width:100%;
-            flex:0 0 auto;
             display:flex;
             flex-direction:column;
             gap:4px;
