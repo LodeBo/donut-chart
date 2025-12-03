@@ -1,5 +1,5 @@
 /*!
- * 🟢 Donut Chart v2.8.0
+ * 🟢 Donut Chart v2.9.0
  * Multi-segment donut (pizza/taart) voor Home Assistant
  *
  * Features:
@@ -15,7 +15,7 @@
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "2.8.0";
+  const VERSION = "2.9.0";
 
   class DonutChart extends HTMLElement {
     constructor() {
