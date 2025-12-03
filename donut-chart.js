@@ -1,5 +1,5 @@
 /*!
- * 🟢 Donut Chart v2.9.0
+ * 🟢 Donut Chart v3.0.0
  * Multi-segment donut (pizza/taart) voor Home Assistant
  *
  * Features:
@@ -8,14 +8,14 @@
  * - Toplabel boven de ring (met schaal + offset)
  * - Rechte gleuven tussen segmenten in theme-kleur
  * - Labels bij segmenten (value / % / beide)
- * - Legenda onderaan (value / % / beide, eigen % decimalen)
+ * - Legenda onderaan (value / % / beide, eigen % decimalen & font-scale)
  * - Theme-aware kaartstijl
  * - Flex-layout: kaarthoogte bepaald door HA raster, donut krimpt bij meer legenda
  */
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "2.9.0";
+  const VERSION = "2.4.3";
 
   class DonutChart extends HTMLElement {
     constructor() {
@@ -67,12 +67,11 @@
         // Minimum totaal (anders 0)
         min_total: 0,
 
-       // Legenda
+        // Legenda
         show_legend: true,
         legend_value_mode: "both",     // "value" | "percent" | "both"
         legend_percent_decimals: 1,    // decimalen voor % in legenda
-        legend_font_scale: 1.0,        // NIEUW: 1.0 = normaal, <1 kleiner, >1 groter
-
+        legend_font_scale: 1.0,        // 1.0 = normaal, <1 kleiner, >1 groter
 
         // Labels per segment (rond de donut, buiten de ring)
         segment_label_mode: "value",   // "none" | "value" | "percent" | "both"
@@ -381,6 +380,8 @@
         }
         legendHtml += `</div>`;
       }
+
+      // Fontgrootte van legenda
       const legendFontScale = Number.isFinite(Number(c.legend_font_scale))
         ? Number(c.legend_font_scale)
         : 1.0;
@@ -443,18 +444,18 @@
             font-size:${legendFontSizeRem}rem;
             flex-shrink:0;
           }
-
-          }
           .legend-item {
             display:flex;
             align-items:center;
             justify-content:space-between;
-            gap:8px;
+            gap:6px;
           }
           .legend-color {
-            width:10px;
-            height:10px;
+            width:12px;
+            height:12px;
             border-radius:50%;
+            margin-right:4px;
+            box-shadow:0 0 0 1px rgba(0,0,0,0.4);
             flex-shrink:0;
           }
           .legend-label {
