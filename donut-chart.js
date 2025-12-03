@@ -1,5 +1,5 @@
 /*!
- * 🟢 Donut Chart v3.0.0
+ * 🟢 Donut Chart v2.4.3
  * Multi-segment donut (pizza/taart) voor Home Assistant
  *
  * Features:
@@ -15,7 +15,7 @@
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "3.0.0";
+  const VERSION = "2.4.3";
 
   class DonutChart extends HTMLElement {
     constructor() {
@@ -381,11 +381,12 @@
         legendHtml += `</div>`;
       }
 
-      // Fontgrootte van legenda
+      // Fontgrootte van legenda + bolletjes
       const legendFontScale = Number.isFinite(Number(c.legend_font_scale))
         ? Number(c.legend_font_scale)
         : 1.0;
       const legendFontSizeRem = 0.85 * legendFontScale;
+      const legendDotSizeRem = legendFontSizeRem * 0.9;
 
       const style = `
         <style>
@@ -451,8 +452,8 @@
             gap:6px;
           }
           .legend-color {
-            width:12px;
-            height:12px;
+            width:${legendDotSizeRem}rem;
+            height:${legendDotSizeRem}rem;
             border-radius:50%;
             margin-right:4px;
             box-shadow:0 0 0 1px rgba(0,0,0,0.4);
@@ -486,18 +487,15 @@
     }
 
     getCardSize() {
-      // hint voor masonry; maar raster/secties gebruiken gewoon de container
       return 4;
     }
   }
 
   try {
-    // Custom element registreren (eenmalig)
     if (!customElements.get("donut-chart")) {
       customElements.define("donut-chart", DonutChart);
     }
 
-    // Registratie voor card picker (altijd)
     window.customCards = window.customCards || [];
     window.customCards.push({
       type: "donut-chart",
