@@ -15,7 +15,7 @@
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "2.4.3";
+  const VERSION = "3.0.0";
 
   class DonutChart extends HTMLElement {
     constructor() {
