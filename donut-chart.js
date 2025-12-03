@@ -1,5 +1,5 @@
 /*!
- * 🟢 Donut Chart v2.7.0
+ * 🟢 Donut Chart v2.8.0
  * Multi-segment donut (pizza/taart) voor Home Assistant
  *
  * Features:
@@ -15,7 +15,7 @@
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "2.7.0";
+  const VERSION = "2.8.0";
 
   class DonutChart extends HTMLElement {
     constructor() {
@@ -67,10 +67,12 @@
         // Minimum totaal (anders 0)
         min_total: 0,
 
-        // Legenda
+       // Legenda
         show_legend: true,
         legend_value_mode: "both",     // "value" | "percent" | "both"
         legend_percent_decimals: 1,    // decimalen voor % in legenda
+        legend_font_scale: 1.0,        // NIEUW: 1.0 = normaal, <1 kleiner, >1 groter
+
 
         // Labels per segment (rond de donut, buiten de ring)
         segment_label_mode: "value",   // "none" | "value" | "percent" | "both"
@@ -379,6 +381,10 @@
         }
         legendHtml += `</div>`;
       }
+      const legendFontScale = Number.isFinite(Number(c.legend_font_scale))
+        ? Number(c.legend_font_scale)
+        : 1.0;
+      const legendFontSizeRem = 0.85 * legendFontScale;
 
       const style = `
         <style>
@@ -434,8 +440,10 @@
             flex-direction:column;
             gap:4px;
             margin-top:4px;
-            font-size:0.85rem;
+            font-size:${legendFontSizeRem}rem;
             flex-shrink:0;
+          }
+
           }
           .legend-item {
             display:flex;
