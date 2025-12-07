@@ -1,21 +1,15 @@
 /*!
- * 🟢 Donut Chart v3.1.0
+ * 🟢 Donut Chart v3.2.0
  * Multi-segment donut (pizza/taart) voor Home Assistant
  *
- * Features:
- * - Meerdere entiteiten als segmenten (segments[])
- * - Centertekst: totaal / 1 entiteit / niets
- * - Toplabel boven de ring (met schaal + offset)
- * - Rechte gleuven tussen segmenten in theme-kleur
- * - Labels bij segmenten (value / % / beide)
- * - Legenda onderaan (value / % / beide, eigen % decimalen & font-scale)
- * - Theme-aware kaartstijl
- * - Flex-layout: kaarthoogte bepaald door HA raster, donut krimpt bij meer legenda
+ * Belangrijk:
+ * - `card_height` in YAML bepaalt nu ECHT de hoogte van de kaart.
+ * - Laat je `card_height` weg → kaart vult de grid-cel (height: 100%).
  */
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "3.1.0";
+  const VERSION = "2.4.5";
 
   class DonutChart extends HTMLElement {
     constructor() {
@@ -39,15 +33,15 @@
         center_entity: "",
         center_unit: "kWh",
         center_decimals: 2,
-        center_font_scale: 0.40,   // schaal t.o.v. ring-radius (R * scale)
+        center_font_scale: 0.40,   // schaal t.o.v. ring-radius
 
         // Top label
         top_label_text: "Donut",
         top_label_weight: 400,
         top_label_color: "#ffffff",
         text_color_inside: "#ffffff", // center + segmentlabels
-        top_label_font_scale: 0.35,   // schaal t.o.v. ring-radius
-        top_label_offset_y: 0,        // extra verschuiving in Y (px, + = omlaag)
+        top_label_font_scale: 0.35,
+        top_label_offset_y: 0,
 
         // Ring layout
         ring_radius: 65,
@@ -62,7 +56,8 @@
         box_shadow: "none",
         padding: "0px",
         track_color: "#000000",
-        track_opacity: 0.0,        // 0 = geen trackring
+        track_opacity: 0.0,
+        card_height: "",           // bv. 220, "220px", "15rem"; leeg = height:100%
 
         // Minimum totaal (anders 0)
         min_total: 0,
@@ -70,19 +65,19 @@
         // Legenda
         show_legend: true,
         legend_value_mode: "both",     // "value" | "percent" | "both"
-        legend_percent_decimals: 1,    // decimalen voor % in legenda
-        legend_font_scale: 1.0,        // 1.0 = normaal, <1 kleiner, >1 groter
+        legend_percent_decimals: 1,
+        legend_font_scale: 1.0,
 
-        // Labels per segment (rond de donut, buiten de ring)
+        // Labels per segment (rond de donut)
         segment_label_mode: "value",   // "none" | "value" | "percent" | "both"
         segment_label_decimals: 1,
-        segment_label_min_angle: 12,   // geen label op mini-stukjes
-        segment_label_offset: 4,       // afstand buiten de ring
-        segment_font_scale: 0.18,      // schaal t.o.v. ring-radius
+        segment_label_min_angle: 12,
+        segment_label_offset: 4,
+        segment_font_scale: 0.18,
 
-        // Rechte gleuven tussen segmenten
-        segment_gap_width: 3,          // px, 0 = geen gleuf
-        segment_gap_color: "auto",     // "auto" = zelfde als background
+        // Gleuven tussen segmenten
+        segment_gap_width: 3,
+        segment_gap_color: "auto",
       };
     }
 
@@ -168,7 +163,7 @@
         <svg viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg">
       `;
 
-      // Optionele track-ring
+      // Track-ring
       if (hasTrack) {
         svg += `
           <circle cx="${cx}" cy="${cy}" r="${R}" fill="none"
@@ -177,12 +172,13 @@
         `;
       }
 
-      // Segmenten: volledige 360°, geen hoek-gaten
+      // Segmenten tekenen (360° → 359.999° zodat 1 segment niet verdwijnt)
       if (total > 0 && segs.length) {
-        let angleCursor = -90; // start bovenaan
+        let angleCursor = -90;
         for (const s of segs) {
           const frac = this._clamp(s.value / total, 0, 1);
-          const span = frac * 360;
+          let span = frac * 360;
+          if (span >= 360) span = 359.999;
           if (span <= 0) {
             s._startAngle = s._endAngle = angleCursor;
             continue;
@@ -260,7 +256,7 @@
         `;
       }
 
-      // Labels bij de segmenten (buiten de ring)
+      // Segmentlabels rond de ring
       const labelMode = c.segment_label_mode || "none";
       if (labelMode !== "none" && total > 0 && segs.length) {
         const dec = Number.isFinite(Number(c.segment_label_decimals))
@@ -311,7 +307,7 @@
         }
       }
 
-      // Rechte gleuven tussen segmenten (theme-kleur)
+      // Gleuven tussen segmenten
       const gapWidth = Number(c.segment_gap_width ?? 0);
       if (gapWidth > 0 && segs.length > 1) {
         let gapColor = c.segment_gap_color;
@@ -342,7 +338,7 @@
 
       svg += `</svg>`;
 
-      // Legenda onderaan
+      // Legenda
       let legendHtml = "";
       const showLegend = c.show_legend !== false;
       const legendMode = c.legend_value_mode || "both";
@@ -381,18 +377,28 @@
         legendHtml += `</div>`;
       }
 
-      // Fontgrootte van legenda + bolletjes
+      // Legend-schaal
       const legendFontScale = Number.isFinite(Number(c.legend_font_scale))
         ? Number(c.legend_font_scale)
         : 1.0;
       const legendFontSizeRem = 0.85 * legendFontScale;
       const legendDotSizeRem = legendFontSizeRem * 0.9;
 
+      // Kaart-hoogte verwerken
+      const rawCardHeight = c.card_height;
+      let cardHeightCss = "";
+      if (rawCardHeight !== undefined && rawCardHeight !== null) {
+        const s = String(rawCardHeight).trim();
+        if (s) {
+          cardHeightCss = /^[0-9]+$/.test(s) ? `${s}px` : s;
+        }
+      }
+
       const style = `
         <style>
-          :host { 
-            display:block; 
-            width:100%; 
+          :host {
+            display:block;
+            width:100%;
             height:100%;
           }
           ha-card {
@@ -402,7 +408,7 @@
             box-shadow:${c.box_shadow};
             padding:${c.padding};
             width:100%;
-            height:100%;
+            ${cardHeightCss ? `height:${cardHeightCss};` : "height:100%;"}
             box-sizing:border-box;
             display:flex;
           }
@@ -433,8 +439,8 @@
             height:100%;
             display:block;
           }
-          text { 
-            user-select:none; 
+          text {
+            user-select:none;
           }
           .legend {
             width:100%;
