@@ -1,15 +1,15 @@
 /*!
- * 🟢 Donut Chart v3.2.0
+ * 🟢 Donut Chart v3.2.1 (Geoptimaliseerd voor trage tablets)
  * Multi-segment donut (pizza/taart) voor Home Assistant
  *
- * Belangrijk:
- * - `card_height` in YAML bepaalt nu ECHT de hoogte van de kaart.
- * - Laat je `card_height` weg → kaart vult de grid-cel (height: 100%).
+ * Wijzigingen t.o.v. vorige versie:
+ * - Render-blocking toegevoegd: de kaart tekent nu ALLEEN opnieuw als
+ * de specifieke entiteiten wijzigen. Dit bespaart veel CPU-kracht.
  */
 
 (() => {
   const TAG = "donut-chart";
-  const VERSION = "2.4.5";
+  const VERSION = "3.2.1";
 
   class DonutChart extends HTMLElement {
     constructor() {
@@ -17,6 +17,7 @@
       this.attachShadow({ mode: "open" });
       this._hass = null;
       this._config = null;
+      this._lastStates = null; // Voor de optimalisatie
     }
 
     static getStubConfig() {
@@ -29,11 +30,11 @@
         ],
 
         // Centertekst
-        center_mode: "total",      // "total" | "entity" | "none"
+        center_mode: "total",       // "total" | "entity" | "none"
         center_entity: "",
         center_unit: "kWh",
         center_decimals: 2,
-        center_font_scale: 0.40,   // schaal t.o.v. ring-radius
+        center_font_scale: 0.40,    // schaal t.o.v. ring-radius
 
         // Top label
         top_label_text: "Donut",
@@ -57,7 +58,7 @@
         padding: "0px",
         track_color: "#000000",
         track_opacity: 0.0,
-        card_height: "",           // bv. 220, "220px", "15rem"; leeg = height:100%
+        card_height: "",            // bv. 220, "220px", "15rem"; leeg = height:100%
 
         // Minimum totaal (anders 0)
         min_total: 0,
@@ -88,11 +89,49 @@
         ...config,
         segments: config.segments || base.segments,
       };
+      // Reset lastStates omdat de config is gewijzigd (nieuwe entiteiten?)
+      this._lastStates = null;
     }
 
+    /**
+     * OPTIMALISATIE:
+     * Check of de relevante entiteiten zijn gewijzigd voordat we renderen.
+     */
     set hass(hass) {
       this._hass = hass;
-      this._render();
+
+      if (!this._config || !this._config.segments) return;
+
+      // 1. Verzamel alle entiteiten die invloed hebben op deze grafiek
+      const entitiesToCheck = this._config.segments.map(s => s.entity);
+      if (this._config.center_mode === "entity" && this._config.center_entity) {
+        entitiesToCheck.push(this._config.center_entity);
+      }
+
+      let somethingChanged = false;
+
+      // 2. Initialiseer cache indien nodig
+      if (!this._lastStates) {
+        this._lastStates = {};
+        somethingChanged = true;
+      }
+
+      // 3. Loop door entiteiten en vergelijk met vorige state
+      for (const entityId of entitiesToCheck) {
+        const currentState = hass.states[entityId];
+        const oldState = this._lastStates[entityId];
+
+        // We checken op referentie. Als HA de state update, is het object nieuw.
+        if (currentState !== oldState) {
+          somethingChanged = true;
+          this._lastStates[entityId] = currentState;
+        }
+      }
+
+      // 4. Alleen renderen als er daadwerkelijk iets gewijzigd is
+      if (somethingChanged) {
+        this._render();
+      }
     }
 
     // Helpers
@@ -506,7 +545,7 @@
     window.customCards.push({
       type: "donut-chart",
       name: "Donut Chart",
-      description: "Multi-segment donut chart (meerdere entiteiten als stukken).",
+      description: "Multi-segment donut chart (geoptimaliseerd).",
       preview: true,
     });
 
